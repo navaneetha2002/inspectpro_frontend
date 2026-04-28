@@ -31,14 +31,13 @@ export default function Questions() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Group</th><th>Order</th><th>Question</th>
+                <th>Q.No</th><th>Question</th>
                 <th>Type</th><th>Required</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {qs.map(q => (
                 <tr key={q.id}>
-                  <td><span className="badge">{q.group_index}</span></td>
                   <td>{q.order_index}</td>
                   <td>{q.question_text}</td>
                   <td><span className="type-badge">{q.field_type}</span></td>

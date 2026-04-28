@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCategories } from '../api/api';
 
-const icons = { kitchen: '🍳', washroom: '🚿', desk: '🖥️', frontdesk: '🏢' };
+const icons = { Cafeteria: '🍳', Washroom: '🚿', Desk: '🖥️', Reception: '🏢' };
 
 export default function Home() {
   const [categories, setCategories] = useState([]);

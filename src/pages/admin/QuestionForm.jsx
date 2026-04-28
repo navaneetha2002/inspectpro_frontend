@@ -10,7 +10,7 @@ export default function QuestionForm() {
   const [allQuestions, setAllQuestions] = useState([]);
   const [form, setForm] = useState({
     category_id: '', question_text: '', field_type: '',
-    options_raw: '', order_index: 0, group_index: 1,
+    options_raw: '', order_index: 0,
     conditional_on_question_id: '', conditional_on_value: '', is_required: true,
   });
 
@@ -24,7 +24,16 @@ export default function QuestionForm() {
         if (q.options) {
           try { options_raw = JSON.parse(q.options).join('\n'); } catch {}
         }
-        setForm({ ...q, options_raw, conditional_on_question_id: q.conditional_on_question_id || '' });
+       setForm({
+  category_id: q.category_id,
+  question_text: q.question_text,
+  field_type: q.field_type,
+  options_raw,
+  order_index: q.order_index || 0,
+  conditional_on_question_id: q.conditional_on_question_id || '',
+  conditional_on_value: q.conditional_on_value || '',
+  is_required: q.is_required ?? true,
+});
       });
     }
   }, [id]);
@@ -36,6 +45,10 @@ export default function QuestionForm() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const payload = {
+    ...form,
+    options_raw: form.options_raw // keep as string
+  };
     if (isEdit) await updateQuestion(id, form);
     else await createQuestion(form);
     navigate('/admin/questions');
@@ -78,11 +91,6 @@ export default function QuestionForm() {
           </div>
         )}
         <div className="form-row">
-          <div className="form-group">
-            <label>Group / Step</label>
-            <input type="number" name="group_index" className="form-input" min="1"
-                   value={form.group_index} onChange={handleChange} />
-          </div>
           <div className="form-group">
             <label>Order</label>
             <input type="number" name="order_index" className="form-input" min="0"

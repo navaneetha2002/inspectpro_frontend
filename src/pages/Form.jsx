@@ -30,7 +30,7 @@ export default function Form() {
   function isVisible(q) {
     if (!q.conditional_on_question_id || !q.conditional_on_value) return true;
     const val = answers[String(q.conditional_on_question_id)] || '';
-    return val.toLowerCase() === q.conditional_on_value.toLowerCase();
+    return val.trim().toLowerCase() === q.conditional_on_value.trim().toLowerCase();
   }
 
   function handleSubmit(e) {
@@ -38,11 +38,9 @@ export default function Form() {
     // Save answers to sessionStorage to persist across steps
     sessionStorage.setItem(`answers_${slug}`, JSON.stringify(answers));
 
-    if (data.isLastGroup) {
+   
       navigate(`/form/${slug}/images`);
-    } else {
-      navigate(`/form/${slug}?group=${group + 1}`);
-    }
+    
   }
 
   if (!data) return <p>Loading...</p>;
@@ -61,68 +59,99 @@ export default function Form() {
       </div>
 
       <form onSubmit={handleSubmit} className="question-form">
-        {data.questions.filter(isVisible).map(q => (
-          <div key={q.id} className="question-block">
-            <label className="question-label">
-              {q.question_text}
-              {q.is_required && <span className="required">*</span>}
-            </label>
+        {data.questions.map(q => {
+          const visible = isVisible(q);
 
-            {q.field_type === 'text' && (
-              <input className="form-input" type="text"
-                     value={answers[String(q.id)] || ''}
-                     onChange={e => handleChange(q.id, e.target.value)}
-                     required={q.is_required} />
-            )}
-            {q.field_type === 'textarea' && (
-              <textarea className="form-input form-textarea"
-                        value={answers[String(q.id)] || ''}
-                        onChange={e => handleChange(q.id, e.target.value)}
-                        required={q.is_required} />
-            )}
-            {q.field_type === 'number' && (
-              <input className="form-input" type="number"
-                     value={answers[String(q.id)] || ''}
-                     onChange={e => handleChange(q.id, e.target.value)}
-                     required={q.is_required} />
-            )}
-            {q.field_type === 'yesno' && (
-              <div className="radio-group">
-                {['Yes', 'No'].map(opt => (
-                  <label key={opt} className="radio-option">
-                    <input type="radio" name={`q_${q.id}`} value={opt}
-                           checked={answers[String(q.id)] === opt}
-                           onChange={() => handleChange(q.id, opt)}
-                           required={q.is_required} /> {opt}
-                  </label>
-                ))}
-              </div>
-            )}
-            {q.field_type === 'select' && (
-              <select className="form-input"
-                      value={answers[String(q.id)] || ''}
-                      onChange={e => handleChange(q.id, e.target.value)}
-                      required={q.is_required}>
-                <option value="">-- Select --</option>
-                {safeOptions(q.options).map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            )}
-            {q.field_type === 'radio' && (
-              <div className="radio-group">
-                {safeOptions(q.options).map(opt => (
-                  <label key={opt} className="radio-option">
-                    <input type="radio" name={`q_${q.id}`} value={opt}
-                           checked={answers[String(q.id)] === opt}
-                           onChange={() => handleChange(q.id, opt)}
-                           required={q.is_required} /> {opt}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+          return (
+            <div
+              key={q.id}
+              className="question-block"
+              style={{ display: visible ? 'block' : 'none' }}  
+            >
+              <label className="question-label">
+                {q.question_text}
+                {q.is_required && <span className="required">*</span>}
+              </label>
+
+              {q.field_type === 'text' && (
+                <input
+                  className="form-input"
+                  type="text"
+                  value={answers[String(q.id)] || ''}
+                  onChange={e => handleChange(q.id, e.target.value)}
+                  required={visible && q.is_required}
+                />
+              )}
+
+              {q.field_type === 'textarea' && (
+                <textarea
+                  className="form-input form-textarea"
+                  value={answers[String(q.id)] || ''}
+                  onChange={e => handleChange(q.id, e.target.value)}
+                  required={visible && q.is_required}
+                />
+              )}
+
+              {q.field_type === 'number' && (
+                <input
+                  className="form-input"
+                  type="number"
+                  value={answers[String(q.id)] || ''}
+                  onChange={e => handleChange(q.id, e.target.value)}
+                  required={visible && q.is_required}
+                />
+              )}
+
+              {q.field_type === 'yesno' && (
+                <div className="radio-group">
+                  {['Yes', 'No'].map(opt => (
+                    <label key={opt} className="radio-option">
+                      <input
+                        type="radio"
+                        name={`q_${q.id}`}
+                        value={opt}
+                        checked={answers[String(q.id)] === opt}
+                        onChange={() => handleChange(q.id, opt)}
+                        required={visible && q.is_required}
+                      /> {opt}
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {q.field_type === 'select' && (
+                <select
+                  className="form-input"
+                  value={answers[String(q.id)] || ''}
+                  onChange={e => handleChange(q.id, e.target.value)}
+                  required={visible && q.is_required}
+                >
+                  <option value="">-- Select --</option>
+                  {safeOptions(q.options).map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              )}
+
+              {q.field_type === 'radio' && (
+                <div className="radio-group">
+                  {safeOptions(q.options).map(opt => (
+                    <label key={opt} className="radio-option">
+                      <input
+                        type="radio"
+                        name={`q_${q.id}`}
+                        value={opt}
+                        checked={answers[String(q.id)] === opt}
+                        onChange={() => handleChange(q.id, opt)}
+                        required={visible && q.is_required}
+                      /> {opt}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary">
