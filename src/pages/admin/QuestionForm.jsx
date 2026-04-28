@@ -1,0 +1,124 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion } from '../../api/api';
+
+export default function QuestionForm() {
+  const { id }       = useParams();
+  const navigate     = useNavigate();
+  const isEdit       = Boolean(id);
+  const [categories, setCategories]   = useState([]);
+  const [allQuestions, setAllQuestions] = useState([]);
+  const [form, setForm] = useState({
+    category_id: '', question_text: '', field_type: '',
+    options_raw: '', order_index: 0, group_index: 1,
+    conditional_on_question_id: '', conditional_on_value: '', is_required: true,
+  });
+
+  useEffect(() => {
+    getCategories().then(r => setCategories(r.data));
+    getAllQuestions().then(r => setAllQuestions(r.data));
+    if (isEdit) {
+      getQuestion(id).then(r => {
+        const q = r.data;
+        let options_raw = '';
+        if (q.options) {
+          try { options_raw = JSON.parse(q.options).join('\n'); } catch {}
+        }
+        setForm({ ...q, options_raw, conditional_on_question_id: q.conditional_on_question_id || '' });
+      });
+    }
+  }, [id]);
+
+  function handleChange(e) {
+    const { name, value, type, checked } = e.target;
+    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (isEdit) await updateQuestion(id, form);
+    else await createQuestion(form);
+    navigate('/admin/questions');
+  }
+
+  const showOptions = form.field_type === 'select' || form.field_type === 'radio';
+
+  return (
+    <div>
+      <div className="page-header">
+        <h1>{isEdit ? 'Edit Question' : 'Add New Question'}</h1>
+        <button onClick={() => navigate('/admin/questions')} className="btn btn-secondary">← Back</button>
+      </div>
+      <form onSubmit={handleSubmit} className="admin-form">
+        <div className="form-group">
+          <label>Category <span className="required">*</span></label>
+          <select name="category_id" className="form-input" value={form.category_id} onChange={handleChange} required>
+            <option value="">— Select Category —</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Question Text <span className="required">*</span></label>
+          <input name="question_text" className="form-input" value={form.question_text} onChange={handleChange} required />
+        </div>
+        <div className="form-group">
+          <label>Field Type <span className="required">*</span></label>
+          <select name="field_type" className="form-input" value={form.field_type} onChange={handleChange} required>
+            <option value="">— Select Type —</option>
+            {['text','textarea','number','yesno','select','radio'].map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+        {showOptions && (
+          <div className="form-group">
+            <label>Options (one per line)</label>
+            <textarea name="options_raw" className="form-input form-textarea" rows={4}
+                      value={form.options_raw} onChange={handleChange} />
+          </div>
+        )}
+        <div className="form-row">
+          <div className="form-group">
+            <label>Group / Step</label>
+            <input type="number" name="group_index" className="form-input" min="1"
+                   value={form.group_index} onChange={handleChange} />
+          </div>
+          <div className="form-group">
+            <label>Order</label>
+            <input type="number" name="order_index" className="form-input" min="0"
+                   value={form.order_index} onChange={handleChange} />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Show When Question</label>
+            <select name="conditional_on_question_id" className="form-input"
+                    value={form.conditional_on_question_id} onChange={handleChange}>
+              <option value="">— Always Show —</option>
+              {allQuestions.map(q => (
+                <option key={q.id} value={q.id}>{q.question_text}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Equals Value</label>
+            <input name="conditional_on_value" className="form-input"
+                   value={form.conditional_on_value} onChange={handleChange}
+                   placeholder="e.g. Yes, No" />
+          </div>
+        </div>
+        <div className="form-group">
+          <label className="checkbox-label">
+            <input type="checkbox" name="is_required" checked={form.is_required} onChange={handleChange} />
+            Required
+          </label>
+        </div>
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary">
+            {isEdit ? 'Update Question' : 'Create Question'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
