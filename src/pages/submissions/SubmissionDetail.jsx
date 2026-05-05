@@ -1,21 +1,40 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getSubmission } from '../../api/api';
+import { getSubmission, deleteSubmission } from '../../api/api';
+import { useNavigate } from 'react-router-dom';
 
 export default function SubmissionDetail() {
   const { uuid } = useParams();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { getSubmission(uuid).then(r => setData(r.data)); }, [uuid]);
 
   if (!data) return <p>Loading...</p>;
   const { submission, images, labelMap } = data;
 
+  async function handleDelete() {
+    if (!window.confirm('Are you sure you want to delete this submission?')) return;
+    setDeleting(true);
+    try {
+      await deleteSubmission(uuid);
+      navigate('/submissions');
+    } catch (err) {
+      alert('Failed to delete submission.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
         <h1>{submission.category_name} Inspection</h1>
         <Link to="/submissions" className="btn btn-secondary">← Back</Link>
+        <button onClick={handleDelete} className="btn btn-danger" style={{ marginLeft: 12 }} disabled={deleting}>
+          {deleting ? 'Deleting...' : 'Delete Submission'}
+        </button>
       </div>
       <div className="detail-meta">
         <span>Submitted: {new Date(submission.submitted_at).toLocaleString()}</span>
