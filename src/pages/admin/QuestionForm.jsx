@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-<<<<<<< HEAD
-import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion, getLocations, getLocationCategories} from '../../api/api';
-=======
-import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion, getLocations, getLocationCategories } from '../../api/api';
->>>>>>> 7365f062ffd6e891608876ef5c405753cb9b4845
+import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion } from '../../api/api';
 
 export default function QuestionForm() {
   const { id }       = useParams();
@@ -12,9 +8,6 @@ export default function QuestionForm() {
   const isEdit       = Boolean(id);
   const [categories, setCategories]   = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
-  const [locations, setLocations]         = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [filteredCategories, setFilteredCategories] = useState([]);
   const [form, setForm] = useState({
     category_id: '', question_text: '', field_type: '',
     options_raw: '', order_index: 0,
@@ -24,7 +17,6 @@ export default function QuestionForm() {
   useEffect(() => {
     getCategories().then(r => setCategories(r.data));
     getAllQuestions().then(r => setAllQuestions(r.data));
-    getLocations().then(r => setLocations(r.data));
     if (isEdit) {
       getQuestion(id).then(r => {
         const q = r.data;
@@ -62,18 +54,6 @@ export default function QuestionForm() {
     navigate('/admin/questions');
   }
 
-  async function handleLocationChange(e) {
-  const locationSlug = e.target.value;
-  setSelectedLocation(locationSlug);
-  if (locationSlug) {
-    const { data } = await getLocationCategories(locationSlug);
-    console.log('Categories for location', locationSlug, data);
-    setFilteredCategories(data);
-  } else {
-    setFilteredCategories([]);
-  }
-}
-
   const showOptions = form.field_type === 'select' || form.field_type === 'radio';
 
   return (
@@ -84,18 +64,7 @@ export default function QuestionForm() {
     </div>
     <form onSubmit={handleSubmit} className="admin-form">
 
-      {/* Location — must select first */}
-      <div className="form-group">
-        <label>Location <span className="required">*</span></label>
-        <select className="form-input" value={selectedLocation} onChange={handleLocationChange} required>
-          <option value="">— Select Location First —</option>
-          {locations.map(l => (
-            <option key={l.id} value={l.slug}>{l.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Category — filtered by selected location */}
+      {/* Category */}
       <div className="form-group">
         <label>Category <span className="required">*</span></label>
         <select
@@ -104,12 +73,9 @@ export default function QuestionForm() {
           value={form.category_id}
           onChange={handleChange}
           required
-          disabled={!selectedLocation}
         >
-          <option value="">
-            {selectedLocation ? '— Select Category —' : '— Select a location first —'}
-          </option>
-          {filteredCategories.map(c => (
+          <option value="">— Select Category —</option>
+          {categories.map(c => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
