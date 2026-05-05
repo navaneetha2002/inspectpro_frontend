@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getLocations, createLocation, updateLocation,
+<<<<<<< HEAD
+  getLocationCategoriesAssigned, assignCategoryToLocation, removeCategoryFromLocation,createCategory
+=======
   getLocationCategoriesAssigned, assignCategoryToLocation, removeCategoryFromLocation,
   getCategories, createCategory
+>>>>>>> 7365f062ffd6e891608876ef5c405753cb9b4845
 } from '../../api/api';
 
 export default function LocationEdit() {
