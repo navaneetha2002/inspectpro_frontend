@@ -17,6 +17,7 @@ export default function Images() {
   async function handleSubmit(e) {
     e.preventDefault();
     const answers = JSON.parse(sessionStorage.getItem(`answers_${slug}`) || '{}');
+    const locationSlug = new URLSearchParams(window.location.search).get('location');
     const fd = new FormData();
     fd.append('answers', JSON.stringify(answers));
     files.forEach(f => fd.append('images', f));

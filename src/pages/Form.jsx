@@ -34,6 +34,9 @@ export default function Form() {
   }
 
   function handleSubmit(e) {
+    const locationSlug = searchParams.get('location');
+    navigate(`/form/${slug}/images?location=${locationSlug}`);
+
     e.preventDefault();
     // Save answers to sessionStorage to persist across steps
     sessionStorage.setItem(`answers_${slug}`, JSON.stringify(answers));

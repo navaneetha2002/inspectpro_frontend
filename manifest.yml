@@ -1,0 +1,10 @@
+applications:
+  - name: inspectpro-frontend
+    memory: 128M
+    buildpacks:
+      - nodejs_buildpack
+    path: .
+    services:
+      - PostSQLtest
+    env:
+      NODE_ENV: production

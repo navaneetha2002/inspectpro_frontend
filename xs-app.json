@@ -1,0 +1,15 @@
+{
+  "routes": [
+    {
+      "source": "^/api/(.*)$",
+      "target": "/api/$1",
+      "destination": "inspectpro-backend",
+      "csrfProtection": false
+    },
+    {
+      "source": "^(.*)$",
+      "target": "$1",
+      "service": "html5-apps-repo-rt"
+    }
+  ]
+}
