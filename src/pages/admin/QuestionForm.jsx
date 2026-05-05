@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion } from '../../api/api';
+import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion, getLocations, getLocationCategories } from '../../api/api';
 
 export default function QuestionForm() {
   const { id }       = useParams();
@@ -63,6 +63,7 @@ export default function QuestionForm() {
   setSelectedLocation(locationSlug);
   if (locationSlug) {
     const { data } = await getLocationCategories(locationSlug);
+    console.log('Categories for location', locationSlug, data);
     setFilteredCategories(data);
   } else {
     setFilteredCategories([]);

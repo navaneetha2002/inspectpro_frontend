@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getSubmissions } from '../../api/api';
+import { getSubmissions, deleteSubmission } from '../../api/api';
 
 export default function SubmissionList() {
   const [submissions, setSubmissions] = useState([]);
@@ -8,18 +8,18 @@ export default function SubmissionList() {
 
   useEffect(() => { getSubmissions().then(r => setSubmissions(r.data)); }, []);
 
-  /*async function handleDelete(uuid) {
-      if (!window.confirm('Delete this submission? This cannot be undone.')) return;
-      try {
-        setDeletingUuid(uuid);
-        await deleteSubmission(uuid);
-        setSubmissions(prev => prev.filter(s => s.submission_uuid !== uuid));
-      } catch {
-        alert('Failed to delete. Please try again.');
-      } finally {
-        setDeletingUuid(null);
-      }
-    }*/
+  async function handleDelete(uuid) {
+    if (!window.confirm('Delete this submission? This cannot be undone.')) return;
+    try {
+      setDeletingUuid(uuid);
+      await deleteSubmission(uuid);
+      setSubmissions(prev => prev.filter(s => s.submission_uuid !== uuid));
+    } catch {
+      alert('Failed to delete. Please try again.');
+    } finally {
+      setDeletingUuid(null);
+    }
+  }
 
   return (
     <div>
@@ -40,7 +40,14 @@ export default function SubmissionList() {
                 <Link to={`/submissions/${s.submission_uuid}`} className="btn btn-sm btn-secondary">
                   View
                 </Link>
-               
+                <button
+                  className="btn btn-sm btn-danger"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => handleDelete(s.submission_uuid)}
+                  disabled={deletingUuid === s.submission_uuid}
+                >
+                  {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}
+                </button>
               </td>
             </tr>
           ))}
