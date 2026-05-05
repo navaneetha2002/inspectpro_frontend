@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion } from '../../api/api';
+import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion, getLocations, getLocationCategories} from '../../api/api';
 
 export default function QuestionForm() {
   const { id }       = useParams();
