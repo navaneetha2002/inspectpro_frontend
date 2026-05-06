@@ -15,9 +15,14 @@ export default function AdminLocations() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Manage Locations</h1>
-        <Link to="/admin/locations/new" className="btn btn-primary">+ Add Location</Link>
+      <div className="sticky-header">
+        <nav className="breadcrumb">
+          <span className="breadcrumb-current">Locations Admin</span>
+        </nav>
+        <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+          <h1>Manage Locations</h1>
+          <Link to="/admin/locations/new" className="btn btn-primary">+ Add Location</Link>
+        </div>
       </div>
       <table className="data-table">
         <thead>
@@ -26,10 +31,10 @@ export default function AdminLocations() {
         <tbody>
           {locations.map(l => (
             <tr key={l.id}>
-              <td>{l.name}</td>
-              <td><code>{l.slug}</code></td>
-              <td>{l.description}</td>
-              <td className="action-cell">
+              <td data-label="Name">{l.name}</td>
+              <td data-label="Slug"><code>{l.slug}</code></td>
+              <td data-label="Description">{l.description}</td>
+              <td data-label="Actions" className="action-cell">
                 <Link to={`/admin/locations/${l.id}/edit`} className="btn btn-sm btn-secondary">Edit</Link>
                 <button onClick={() => handleDelete(l.id)} className="btn btn-sm btn-danger">Delete</button>
               </td>

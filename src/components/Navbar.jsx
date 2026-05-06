@@ -1,11 +1,11 @@
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useState } from 'react';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <nav className="navbar">
-      <Link to="/" className="nav-brand">InspectPro</Link>
+      <NavLink to="/" className="nav-brand">InspectPro</NavLink>
       <button
         className="hamburger"
         aria-label="Toggle menu"
@@ -16,10 +16,10 @@ export default function Navbar() {
         <span className="bar"></span>
       </button>
       <div className={`nav-links${menuOpen ? ' open' : ''}`}>
-        <Link to="/" onClick={() => setMenuOpen(false)}>Locations</Link>
-        <Link to="/submissions" onClick={() => setMenuOpen(false)}>Submissions</Link>
-        <Link to="/admin/questions" onClick={() => setMenuOpen(false)}>Questions Admin</Link>
-        <Link to="/admin/locations" onClick={() => setMenuOpen(false)}>Locations Admin</Link>
+        <NavLink to="/" end onClick={() => setMenuOpen(false)}>Locations</NavLink>
+        <NavLink to="/submissions" onClick={() => setMenuOpen(false)}>Submissions</NavLink>
+        <NavLink to="/admin/questions" onClick={() => setMenuOpen(false)}>Questions Admin</NavLink>
+        <NavLink to="/admin/locations" onClick={() => setMenuOpen(false)}>Locations Admin</NavLink>
       </div>
     </nav>
   );

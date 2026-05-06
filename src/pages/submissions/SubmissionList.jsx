@@ -23,7 +23,14 @@ export default function SubmissionList() {
 
   return (
     <div>
-      <div className="page-header"><h1>Submissions</h1></div>
+      <div className="sticky-header">
+        <nav className="breadcrumb">
+          <span className="breadcrumb-current">Submissions</span>
+        </nav>
+        <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+          <h1>Submissions</h1>
+        </div>
+      </div>
       <table className="data-table">
         <thead>
           <tr>
@@ -33,10 +40,10 @@ export default function SubmissionList() {
         <tbody>
           {submissions.map(s => (
             <tr key={s.id} style={{ opacity: deletingUuid === s.submission_uuid ? 0.4 : 1 }}>
-              <td>{new Date(s.submitted_at).toLocaleString()}</td>
-              <td>{s.category_name}</td>
-              <td>{s.image_count}</td>
-              <td className="action-cell">
+              <td data-label="Date">{new Date(s.submitted_at).toLocaleString()}</td>
+              <td data-label="Category">{s.category_name}</td>
+              <td data-label="Images">{s.image_count}</td>
+              <td data-label="Actions" className="action-cell">
                 <Link to={`/submissions/${s.submission_uuid}`} className="btn btn-sm btn-secondary">
                   View
                 </Link>
