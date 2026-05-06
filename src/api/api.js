@@ -4,6 +4,36 @@ const api = axios.create({
   baseURL: 'https://inspectpro-backend.cfapps.eu10-004.hana.ondemand.com/api'
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Separate instance for auth — hosted on local backend
+const authApi = axios.create({
+  baseURL: 'http://localhost:3000/api'
+});
+
+export const login = (username, password) =>
+  authApi.post('/auth/login', { username, password });
+
+export const register = (username, email, password, location) =>
+  authApi.post('/auth/register', { username, email, password, location });
+
 // Categories
 export const getCategories  = ()      => api.get('/categories');
 export const createCategory = (data)  => api.post('/categories', data);
