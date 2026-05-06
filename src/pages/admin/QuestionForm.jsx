@@ -58,9 +58,15 @@ export default function QuestionForm() {
 
   return (
   <div>
-    <div className="page-header">
-      <h1>{isEdit ? 'Edit Question' : 'Add New Question'}</h1>
-      <button onClick={() => navigate('/admin/questions')} className="btn btn-secondary">← Back</button>
+    <div className="sticky-header">
+      <nav className="breadcrumb">
+        <span className="breadcrumb-link" onClick={() => navigate('/admin/questions')}>Questions Admin</span>
+        <span className="breadcrumb-sep">›</span>
+        <span className="breadcrumb-current">{isEdit ? 'Edit Question' : 'Add New Question'}</span>
+      </nav>
+      <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+        <h1>{isEdit ? 'Edit Question' : 'Add New Question'}</h1>
+      </div>
     </div>
     <form onSubmit={handleSubmit} className="admin-form">
 

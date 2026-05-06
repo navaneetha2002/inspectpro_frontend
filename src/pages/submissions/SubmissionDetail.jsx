@@ -29,12 +29,18 @@ export default function SubmissionDetail() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>{submission.category_name} Inspection</h1>
-        <Link to="/submissions" className="btn btn-secondary">← Back</Link>
-        <button onClick={handleDelete} className="btn btn-danger" style={{ marginLeft: 12 }} disabled={deleting}>
-          {deleting ? 'Deleting...' : 'Delete Submission'}
-        </button>
+      <div className="sticky-header">
+        <nav className="breadcrumb">
+          <span className="breadcrumb-link" onClick={() => navigate('/submissions')}>Submissions</span>
+          <span className="breadcrumb-sep">›</span>
+          <span className="breadcrumb-current">{submission.category_name} Inspection</span>
+        </nav>
+        <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+          <h1>{submission.category_name} Inspection</h1>
+          <button onClick={handleDelete} className="btn btn-danger" disabled={deleting}>
+            {deleting ? 'Deleting...' : 'Delete Submission'}
+          </button>
+        </div>
       </div>
       <div className="detail-meta">
         <span>Submitted: {new Date(submission.submitted_at).toLocaleString()}</span>

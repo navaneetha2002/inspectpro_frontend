@@ -98,9 +98,15 @@ export default function LocationEdit() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>{isEdit ? 'Edit Location' : 'Add New Location'}</h1>
-        <button onClick={() => navigate('/admin/locations')} className="btn btn-secondary">← Back</button>
+      <div className="sticky-header">
+        <nav className="breadcrumb">
+          <span className="breadcrumb-link" onClick={() => navigate('/admin/locations')}>Locations Admin</span>
+          <span className="breadcrumb-sep">›</span>
+          <span className="breadcrumb-current">{isEdit ? 'Edit Location' : 'Add New Location'}</span>
+        </nav>
+        <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+          <h1>{isEdit ? 'Edit Location' : 'Add New Location'}</h1>
+        </div>
       </div>
 
       {/* Location details form */}
