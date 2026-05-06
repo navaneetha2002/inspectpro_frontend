@@ -15,10 +15,14 @@ export default function Home() {
 
     return (
     <div>
+      <div className="sticky-header">
+        <nav className="breadcrumb">
+          <span className="breadcrumb-link" onClick={() => navigate('/')}>Locations</span>
+          <span className="breadcrumb-sep">›</span>
+          <span className="breadcrumb-current">Select Category</span>
+        </nav>
+      </div>
       <div className="hero">
-        <div className="breadcrumb" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
-          <a href="/" style={{ color: 'var(--primary)' }}>← Back to Locations</a>
-        </div>
         <h1>Select Category</h1>
         <p className="subtitle">Choose an area to inspect</p>
       </div>
@@ -29,7 +33,7 @@ export default function Home() {
             <div className="cat-icon">{icons[c.slug] || '📋'}</div>
             <h2>{c.name}</h2>
             <p>{c.description}</p>
-            <span className="btn-start">Start Inspection →</span>
+
           </div>
         ))}
       </div>

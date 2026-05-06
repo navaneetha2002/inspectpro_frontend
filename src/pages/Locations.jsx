@@ -29,7 +29,7 @@ export default function Locations() {
             <div className="cat-icon">{icons[l.slug] || '🏢'}</div>
             <h2>{l.name}</h2>
             <p>{l.description}</p>
-            <span className="btn-start">Select Location →</span>
+
           </div>
         ))}
       </div>
