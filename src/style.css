@@ -557,3 +557,194 @@ code { background: #f1f5f9; border-radius: 4px; padding: .1rem .35rem; font-size
 
 /* ── Footer ──────────────────────────────────────────────────────────────── */
 .footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 2rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+
+/* ── Login ───────────────────────────────────────────────────────────────── */
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 60px);
+  padding: 2rem 1rem;
+}
+.login-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.login-form h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: .95rem;
+}
+.login-form input {
+  padding: .65rem .9rem;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  transition: border-color .2s, box-shadow .2s;
+}
+.login-form input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.login-form .btn {
+  width: 100%;
+  text-align: center;
+  margin-top: .25rem;
+}
+.login-error {
+  color: var(--danger);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  padding: .6rem .9rem;
+  font-size: .9rem;
+}
+.login-success {
+  color: var(--success);
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 7px;
+  padding: .6rem .9rem;
+  font-size: .9rem;
+}
+.auth-switch {
+  text-align: center;
+  font-size: .9rem;
+  color: var(--muted);
+}
+.auth-switch a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.auth-switch a:hover { text-decoration: underline; }
+
+/* ── Logout button ───────────────────────────────────────────────────────── */
+.btn-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--danger);
+  font-size: .95rem;
+  font-weight: 600;
+  padding: 0;
+  transition: color .2s;
+}
+.btn-logout:hover { color: #b91c1c; }
+
+/* ── Navbar avatar ───────────────────────────────────────────────────────── */
+.nav-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  flex-shrink: 0;
+  margin-left: 1rem;
+  transition: background .2s;
+}
+.nav-avatar:hover { background: var(--primary-d); }
+
+/* ── Profile page ────────────────────────────────────────────────────────── */
+.profile-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1rem;
+}
+.profile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .75rem;
+}
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: .5rem;
+}
+.profile-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.profile-role-badge {
+  background: #eff6ff;
+  color: var(--primary);
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: .2rem .75rem;
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.profile-details {
+  width: 100%;
+  margin-top: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .95rem;
+}
+.profile-row:last-child { border-bottom: none; }
+.profile-row dt {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.profile-row dd {
+  color: var(--text);
+  font-weight: 500;
+}
