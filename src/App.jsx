@@ -17,7 +17,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Navbar />
-      <div className="container">
+      
         <Routes>
           <Route path="/form/:slug"                element={<Form />} />
           <Route path="/form/:slug/images"         element={<Images />} />
@@ -33,7 +33,7 @@ export default function App() {
           <Route path="/admin/locations/new"           element={<AdminLocationEdit />} />
           <Route path="/admin/locations/:id/edit"      element={<AdminLocationEdit />} />
         </Routes>
-      </div>
+      
     </BrowserRouter>
   );
 }

@@ -56,7 +56,7 @@ export default function SubmissionDetail() {
           <div className="image-gallery">
             {images.map(img => (
               <div key={img.id} className="gallery-item">
-                <img src={`http://localhost:3000/api/form/image/${img.id}`} alt={img.original_name} />
+                <img src={`https://inspectpro-backend.cfapps.eu10-004.hana.ondemand.com/api/form/image/${img.id}`} alt={img.original_name} />
                 <span>{img.original_name}</span>
               </div>
             ))}
