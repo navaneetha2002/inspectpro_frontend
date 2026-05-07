@@ -18,6 +18,7 @@ export default function Navbar() {
     clearToken();
     setMenuOpen(false);
     setProfileOpen(false);
+    setLogoutConfirm(false);
     navigate('/login', { replace: true });
   }
 
@@ -25,6 +26,17 @@ export default function Navbar() {
 
   return (
     <>
+
+ <ConfirmModal
+        isOpen={logoutConfirm}
+        title="Sign Out"
+        message="Are you sure you want to log out?"
+        confirmText="Logout"
+        confirmClass="btn-danger"
+        onConfirm={handleLogout}
+        onCancel={() => setLogoutConfirm(false)}
+      />
+
       <nav className="navbar">
         <NavLink to="/" className="nav-brand">InspectPro</NavLink>
 
