@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { login } from '../api/api';
+import { useNavigate, Link } from 'react-router-dom';
+import { login, getLocationById } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -9,20 +9,31 @@ export default function Login() {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  const { saveToken } = useAuth();
-  const navigate      = useNavigate();
-  const location      = useLocation();
-  const from          = location.state?.from?.pathname || '/';
+  const { saveToken, saveLocationSlug } = useAuth();  // ← single declaration
+  const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res = await login(username, password);
+      const res   = await login(username, password);
       const token = res.data.token;
       saveToken(token);
-      navigate(from, { replace: true });
+
+      const payload     = JSON.parse(atob(token.split('.')[1]));
+      const role        = payload.role || payload.roles;
+      const location_id = payload.location_id;
+
+      if (role === 'global_admin') {
+        navigate('/', { replace: true });
+      } else {
+        const locRes = await getLocationById(location_id);
+        const slug   = locRes.data.slug;
+        saveLocationSlug(slug);                            // ← persist slug
+        navigate(`/location/${slug}`, { replace: true });
+      }
+
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid credentials');
     } finally {
@@ -57,7 +68,9 @@ export default function Login() {
         <button type="submit" className="btn btn-primary" disabled={loading}>
           {loading ? 'Signing in…' : 'Sign In'}
         </button>
-
+        <p className="auth-switch">
+          New user? <Link to="/register">Create an account</Link>
+        </p>
       </form>
     </div>
   );

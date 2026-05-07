@@ -1,9 +1,9 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';  // ← add Navigate
 import Navbar                from './components/Navbar';
 import ProtectedRoute        from './components/ProtectedRoute';
-import { AuthProvider }      from './context/AuthContext';
-import { PermissionsProvider } from './context/PermissionsContext';
-import { PERMISSIONS }       from './config/permissions';
+import { AuthProvider, useAuth } from './context/AuthContext';  // ← add useAuth
+import { PermissionsProvider, usePermissions } from './context/PermissionsContext';
+import { PERMISSIONS } from './config/permissions';
 import Home                  from './pages/Home';
 import Form                  from './pages/Form';
 import Images                from './pages/Images';
@@ -20,38 +20,65 @@ import Locations             from './pages/Locations';
 import AdminLocations        from './pages/admin/Locations';
 import AdminLocationEdit     from './pages/admin/LocationEdit';
 
+// Guard: global_admin-only pages
+function AdminOnly({ children }) {
+  const { isGlobalAdmin } = useAuth();
+  return isGlobalAdmin ? children : <Navigate to="/categories" replace />;
+}
+
+// Guard: permission-gated pages
+function RequirePermission({ permission, children }) {
+  const { isGlobalAdmin } = useAuth();
+  const { hasPermission, loading } = usePermissions();
+  if (isGlobalAdmin) return children;
+  if (loading) return null;
+  return hasPermission(permission)
+    ? children
+    : <Navigate to="/categories" replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <PermissionsProvider>
-        <BrowserRouter>
-          <Navbar />
-          <div className="container">
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login"                         element={<Login />} />
+      <BrowserRouter>
+        <Navbar />
+        <div className="container">
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
 
-              {/* Protected — no specific permission required (any authenticated user) */}
-              <Route path="/"                              element={<ProtectedRoute><Locations /></ProtectedRoute>} />
-              <Route path="/location/:locationSlug"        element={<ProtectedRoute><Home /></ProtectedRoute>} />
-              <Route path="/form/:slug"                    element={<ProtectedRoute><Form /></ProtectedRoute>} />
-              <Route path="/form/:slug/images"             element={<ProtectedRoute><Images /></ProtectedRoute>} />
-              <Route path="/submissions/:uuid/thankyou"    element={<ProtectedRoute><ThankYou /></ProtectedRoute>} />
+            {/* "/" → only global_admin sees location picker, others go to /categories */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <AdminOnly>
+                  <Locations />
+                </AdminOnly>
+              </ProtectedRoute>
+            } />
 
-              {/* Permission-gated routes */}
-              <Route path="/submissions"                   element={<ProtectedRoute permission={PERMISSIONS.VIEW_SUBMISSIONS}><SubmissionList /></ProtectedRoute>} />
-              <Route path="/submissions/:uuid"             element={<ProtectedRoute permission={PERMISSIONS.VIEW_SUBMISSIONS}><SubmissionDetail /></ProtectedRoute>} />
-              <Route path="/admin/questions"               element={<ProtectedRoute permission={PERMISSIONS.ADMIN_QUESTIONS}><Questions /></ProtectedRoute>} />
-              <Route path="/admin/questions/new"           element={<ProtectedRoute permission={PERMISSIONS.ADMIN_QUESTIONS}><QuestionForm /></ProtectedRoute>} />
-              <Route path="/admin/questions/:id/edit"      element={<ProtectedRoute permission={PERMISSIONS.ADMIN_QUESTIONS}><QuestionForm /></ProtectedRoute>} />
-              <Route path="/admin/locations"               element={<ProtectedRoute permission={PERMISSIONS.ADMIN_LOCATIONS}><AdminLocations /></ProtectedRoute>} />
-              <Route path="/admin/locations/new"           element={<ProtectedRoute permission={PERMISSIONS.ADMIN_LOCATIONS}><AdminLocationEdit /></ProtectedRoute>} />
-              <Route path="/admin/locations/:id/edit"      element={<ProtectedRoute permission={PERMISSIONS.ADMIN_LOCATIONS}><AdminLocationEdit /></ProtectedRoute>} />
-              <Route path="/admin/register"                element={<ProtectedRoute permission={PERMISSIONS.REGISTER_USER}><Register /></ProtectedRoute>} />
-              <Route path="/admin/permissions"             element={<ProtectedRoute permission={PERMISSIONS.MANAGE_PERMISSIONS}><Permissions /></ProtectedRoute>} />
-            </Routes>
-          </div>
-        </BrowserRouter>
+            {/* ← New: non-admin users land here directly after login */}
+            <Route path="/categories" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+
+            {/* Admin picks a location → category page with locationSlug in URL */}
+            <Route path="/location/:locationSlug" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+
+            <Route path="/form/:slug"                    element={<ProtectedRoute><Form /></ProtectedRoute>} />
+            <Route path="/form/:slug/images"             element={<ProtectedRoute><Images /></ProtectedRoute>} />
+            <Route path="/submissions/:uuid/thankyou"    element={<ProtectedRoute><ThankYou /></ProtectedRoute>} />
+            <Route path="/submissions"                   element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SUBMISSIONS}><SubmissionList /></RequirePermission></ProtectedRoute>} />
+            <Route path="/submissions/:uuid"             element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SUBMISSIONS}><SubmissionDetail /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/questions"               element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><Questions /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/questions/new"           element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><QuestionForm /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/questions/:id/edit"      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><QuestionForm /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/locations"               element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocations /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/locations/new"           element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocationEdit /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/locations/:id/edit"      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocationEdit /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/register"                element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER}><Register /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/permissions"             element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_PERMISSIONS}><Permissions /></RequirePermission></ProtectedRoute>} />
+          </Routes>
+        </div>
+      </BrowserRouter>
       </PermissionsProvider>
     </AuthProvider>
   );

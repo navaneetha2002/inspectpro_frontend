@@ -6,7 +6,7 @@ import { PERMISSIONS } from '../config/permissions';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { isAuthenticated, clearToken, role } = useAuth();
+  const { isAuthenticated, clearToken, isGlobalAdmin, location_slug } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
@@ -33,22 +33,38 @@ export default function Navbar() {
       <div className={`nav-links${menuOpen ? ' open' : ''}`}>
         {isAuthenticated && (
           <>
-            <NavLink to="/" end onClick={close}>Locations</NavLink>
-            {hasPermission(role, PERMISSIONS.VIEW_SUBMISSIONS) && (
+            {isGlobalAdmin ? (
+              <NavLink to="/" end onClick={close}>Locations</NavLink>
+            ) : (
+              <NavLink to={`/location/${location_slug}`} onClick={close}>Home</NavLink>
+            )}
+
+            {hasPermission(PERMISSIONS.VIEW_SUBMISSIONS) && (
               <NavLink to="/submissions" onClick={close}>Submissions</NavLink>
             )}
-            {hasPermission(role, PERMISSIONS.ADMIN_QUESTIONS) && (
+
+            {isGlobalAdmin && (
+              <>
+                <NavLink to="/admin/questions"   onClick={close}>Questions Admin</NavLink>
+                <NavLink to="/admin/locations"   onClick={close}>Locations Admin</NavLink>
+                <NavLink to="/admin/register"    onClick={close}>Register User</NavLink>
+                <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
+              </>
+            )}
+
+            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_QUESTIONS) && (
               <NavLink to="/admin/questions" onClick={close}>Questions Admin</NavLink>
             )}
-            {hasPermission(role, PERMISSIONS.ADMIN_LOCATIONS) && (
+            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_LOCATIONS) && (
               <NavLink to="/admin/locations" onClick={close}>Locations Admin</NavLink>
             )}
-            {hasPermission(role, PERMISSIONS.REGISTER_USER) && (
+            {!isGlobalAdmin && hasPermission(PERMISSIONS.REGISTER_USER) && (
               <NavLink to="/admin/register" onClick={close}>Register User</NavLink>
             )}
-            {hasPermission(role, PERMISSIONS.MANAGE_PERMISSIONS) && (
+            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_PERMISSIONS) && (
               <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
             )}
+
             <button className="btn-logout" onClick={handleLogout}>Logout</button>
           </>
         )}
