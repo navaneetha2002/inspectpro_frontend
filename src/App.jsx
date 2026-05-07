@@ -15,6 +15,7 @@ import QuestionForm          from './pages/admin/QuestionForm';
 import SubmissionList        from './pages/submissions/SubmissionList';
 import SubmissionDetail      from './pages/submissions/SubmissionDetail';
 import Permissions           from './pages/admin/Permissions';
+import Users                 from './pages/admin/Users';
 import './style.css';
 import Locations             from './pages/Locations';
 import AdminLocations        from './pages/admin/Locations';
@@ -31,7 +32,7 @@ function RequirePermission({ permission, children }) {
   const { isGlobalAdmin } = useAuth();
   const { hasPermission, loading } = usePermissions();
   if (isGlobalAdmin) return children;
-  if (loading) return null;
+  if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
   return hasPermission(permission)
     ? children
     : <Navigate to="/categories" replace />;
@@ -74,6 +75,7 @@ export default function App() {
             <Route path="/admin/locations"               element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocations /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/locations/new"           element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocationEdit /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/locations/:id/edit"      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocationEdit /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/users"                  element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER}><Users /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/register"                element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER}><Register /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/permissions"             element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_PERMISSIONS}><Permissions /></RequirePermission></ProtectedRoute>} />
           </Routes>
