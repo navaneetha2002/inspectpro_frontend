@@ -12,17 +12,23 @@ function decodeToken(token) {
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [role, setRole] = useState(() => {
+    const t = localStorage.getItem('token');
+    return t ? decodeRole(t) : null;
+  });
 
   const user = token ? decodeToken(token) : null;
 
   function saveToken(newToken) {
     localStorage.setItem('token', newToken);
     setToken(newToken);
+    setRole(decodeRole(newToken));
   }
 
   function clearToken() {
     localStorage.removeItem('token');
     setToken(null);
+    setRole(null);
   }
 
   return (

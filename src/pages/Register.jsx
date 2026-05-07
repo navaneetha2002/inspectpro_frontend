@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../api/api';
 
 export default function Register() {
@@ -11,8 +10,6 @@ export default function Register() {
   const [error, setError]         = useState('');
   const [success, setSuccess]     = useState('');
   const [loading, setLoading]     = useState(false);
-
-  const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -27,8 +24,12 @@ export default function Register() {
     setLoading(true);
     try {
       await register(username, email, password, location);
-      setSuccess('Account created! Redirecting to login…');
-      setTimeout(() => navigate('/login'), 1500);
+      setSuccess('Account created successfully.');
+      setUsername('');
+      setEmail('');
+      setPassword('');
+      setConfirm('');
+      setLocation('');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -39,7 +40,7 @@ export default function Register() {
   return (
     <div className="login-wrapper">
       <form className="login-form" onSubmit={handleSubmit}>
-        <h2>Create Account</h2>
+        <h2>Register New User</h2>
         {error   && <p className="login-error">{error}</p>}
         {success && <p className="login-success">{success}</p>}
         <label>
@@ -91,9 +92,6 @@ export default function Register() {
         <button type="submit" className="btn btn-primary" disabled={loading}>
           {loading ? 'Creating account…' : 'Register'}
         </button>
-        <p className="auth-switch">
-          Already have an account? <Link to="/login">Sign In</Link>
-        </p>
       </form>
     </div>
   );
