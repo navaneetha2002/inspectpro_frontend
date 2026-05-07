@@ -77,14 +77,7 @@ export default function SubmissionList() {
                     {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}
                   </button>
                 )}
-                <button
-                  className="btn btn-sm btn-danger"
-                  style={{ marginLeft: 8 }}
-                  onClick={() => setConfirmUuid(s.submission_uuid)}
-                  disabled={deletingUuid === s.submission_uuid}
-                >
-                  {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}
-                </button>
+
               </td>
             </tr>
           ))}
