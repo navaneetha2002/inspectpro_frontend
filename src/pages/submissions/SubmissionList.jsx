@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSubmissions, deleteSubmission } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function SubmissionList() {
   const [submissions, setSubmissions] = useState([]);
   const [deletingUuid, setDeletingUuid] = useState(null);
   const { isGlobalAdmin, userId } = useAuth();
+  const [confirmUuid,  setConfirmUuid]  = useState(null);
 
   useEffect(() => {
     getSubmissions().then(r => {
@@ -20,8 +22,9 @@ export default function SubmissionList() {
     });
   }, [isGlobalAdmin, userId]);
 
-  async function handleDelete(uuid) {
-    if (!window.confirm('Delete this submission? This cannot be undone.')) return;
+  async function handleDelete() {
+    const uuid = confirmUuid;
+    setConfirmUuid(null);
     try {
       setDeletingUuid(uuid);
       await deleteSubmission(uuid);
@@ -43,6 +46,7 @@ export default function SubmissionList() {
           <h1>Submissions</h1>
         </div>
       </div>
+
       <table className="data-table">
         <thead>
           <tr>
@@ -73,11 +77,30 @@ export default function SubmissionList() {
                     {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}
                   </button>
                 )}
+                <button
+                  className="btn btn-sm btn-danger"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => setConfirmUuid(s.submission_uuid)}
+                  disabled={deletingUuid === s.submission_uuid}
+                >
+                  {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}
+                </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {confirmUuid && (
+        <ConfirmModal
+          title="Delete Submission"
+          message="Are you sure you want to delete this submission? This cannot be undone."
+          confirmLabel="Delete"
+          danger
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmUuid(null)}
+        />
+      )}
     </div>
   );
 }

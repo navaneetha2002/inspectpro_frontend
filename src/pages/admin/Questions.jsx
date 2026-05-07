@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getQuestions, deleteQuestion } from '../../api/api';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function Questions() {
   const [questions, setQuestions] = useState([]);
+  const [confirmId, setConfirmId] = useState(null);
 
   useEffect(() => { getQuestions().then(r => setQuestions(r.data)); }, []);
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this question?')) return;
+  async function handleDelete() {
+    const id = confirmId;
+    setConfirmId(null);
     await deleteQuestion(id);
     setQuestions(prev => prev.filter(q => q.id !== id));
   }
@@ -30,6 +33,7 @@ export default function Questions() {
           <Link to="/admin/questions/new" className="btn btn-primary">+ Add Question</Link>
         </div>
       </div>
+
       {Object.entries(byCategory).map(([cat, qs]) => (
         <section key={cat} className="admin-section">
           <h2 className="section-title">{cat}</h2>
@@ -49,7 +53,7 @@ export default function Questions() {
                   <td data-label="Required">{q.is_required ? '✔' : '—'}</td>
                   <td data-label="Actions" className="action-cell">
                     <Link to={`/admin/questions/${q.id}/edit`} className="btn btn-sm btn-secondary">Edit</Link>
-                    <button onClick={() => handleDelete(q.id)} className="btn btn-sm btn-danger">Delete</button>
+                    <button onClick={() => setConfirmId(q.id)} className="btn btn-sm btn-danger">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -57,6 +61,17 @@ export default function Questions() {
           </table>
         </section>
       ))}
+
+      {confirmId && (
+        <ConfirmModal
+          title="Delete Question"
+          message="Are you sure you want to delete this question? This cannot be undone."
+          confirmLabel="Delete"
+          danger
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
     </div>
   );
 }

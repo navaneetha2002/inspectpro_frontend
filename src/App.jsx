@@ -15,6 +15,7 @@ import QuestionForm          from './pages/admin/QuestionForm';
 import SubmissionList        from './pages/submissions/SubmissionList';
 import SubmissionDetail      from './pages/submissions/SubmissionDetail';
 import Permissions           from './pages/admin/Permissions';
+import Users                 from './pages/admin/Users';
 import './style.css';
 import Locations             from './pages/Locations';
 import AdminLocations        from './pages/admin/Locations';

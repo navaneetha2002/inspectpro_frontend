@@ -10,6 +10,12 @@ function decodeToken(token) {
   }
 }
 
+// Extract role from token
+function decodeRole(token) {
+  const decoded = decodeToken(token);
+  return decoded?.role || null;
+}
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
 
@@ -24,6 +30,8 @@ export function AuthProvider({ children }) {
   const [savedSlug, setSavedSlug] = useState(
     () => localStorage.getItem('location_slug')
   );
+
+  const user = token ? decodeToken(token) : null;
 
   function saveToken(newToken) {
     localStorage.setItem('token', newToken);
