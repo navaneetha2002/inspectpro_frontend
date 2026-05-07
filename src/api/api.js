@@ -28,11 +28,23 @@ const authApi = axios.create({
   baseURL: 'http://localhost:3000/api'
 });
 
-export const login = (email, password) =>
-  authApi.post('/auth/login', { email, password });
+authApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+});
 
-export const register = (username, email, password, location) =>
-  authApi.post('/auth/register', { username, email, password, location });
+export const login = (username, password) =>
+  authApi.post('/auth/login', { username, password });
+
+export const register = (username, email, password, location, role) =>
+  authApi.post('/auth/register', { username, email, password, location, role });
+
+// Users (admin)
+export const getUsers   = ()   => authApi.get('/auth/users');
+export const deleteUser = (id) => authApi.delete(`/auth/users/${id}`);
 
 // Categories
 export const getCategories  = ()      => api.get('/categories');

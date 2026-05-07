@@ -15,6 +15,7 @@ import QuestionForm          from './pages/admin/QuestionForm';
 import SubmissionList        from './pages/submissions/SubmissionList';
 import SubmissionDetail      from './pages/submissions/SubmissionDetail';
 import Permissions           from './pages/admin/Permissions';
+import Users                 from './pages/admin/Users';
 import './style.css';
 import Locations             from './pages/Locations';
 import AdminLocations        from './pages/admin/Locations';
@@ -48,6 +49,7 @@ export default function App() {
               <Route path="/admin/locations/new"           element={<ProtectedRoute permission={PERMISSIONS.ADMIN_LOCATIONS}><AdminLocationEdit /></ProtectedRoute>} />
               <Route path="/admin/locations/:id/edit"      element={<ProtectedRoute permission={PERMISSIONS.ADMIN_LOCATIONS}><AdminLocationEdit /></ProtectedRoute>} />
               <Route path="/admin/register"                element={<ProtectedRoute permission={PERMISSIONS.REGISTER_USER}><Register /></ProtectedRoute>} />
+              <Route path="/admin/users"                   element={<ProtectedRoute permission={PERMISSIONS.REGISTER_USER}><Users /></ProtectedRoute>} />
               <Route path="/admin/permissions"             element={<ProtectedRoute permission={PERMISSIONS.MANAGE_PERMISSIONS}><Permissions /></ProtectedRoute>} />
             </Routes>
           </div>
