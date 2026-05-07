@@ -33,18 +33,14 @@ export default function Form() {
     return val.trim().toLowerCase() === q.conditional_on_value.trim().toLowerCase();
   }
 
-  function handleSubmit(e) {
-    const locationSlug = searchParams.get('location');
-    navigate(`/form/${slug}/images?location=${locationSlug}`);
+ function handleSubmit(e) {
+  e.preventDefault(); // ✅ must be first
 
-    e.preventDefault();
-    // Save answers to sessionStorage to persist across steps
-    sessionStorage.setItem(`answers_${slug}`, JSON.stringify(answers));
+  const locationSlug = searchParams.get('location');
+  sessionStorage.setItem(`answers_${slug}`, JSON.stringify(answers));
 
-   
-      navigate(`/form/${slug}/images`);
-    
-  }
+  navigate(`/form/${slug}/images?location=${locationSlug}`); // ✅ single navigate with location
+}
 
   if (!data) return <p>Loading...</p>;
 

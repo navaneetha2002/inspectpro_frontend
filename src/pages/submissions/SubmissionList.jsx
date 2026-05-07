@@ -34,13 +34,14 @@ export default function SubmissionList() {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Date</th><th>Category</th><th>Images</th><th>Actions</th>
+            <th>Date</th><th>Location</th><th>Category</th><th>Images</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {submissions.map(s => (
             <tr key={s.id} style={{ opacity: deletingUuid === s.submission_uuid ? 0.4 : 1 }}>
               <td data-label="Date">{new Date(s.submitted_at).toLocaleString()}</td>
+              <td data-label="Location">{s.location_name || '—'}</td>
               <td data-label="Category">{s.category_name}</td>
               <td data-label="Images">{s.image_count}</td>
               <td data-label="Actions" className="action-cell">

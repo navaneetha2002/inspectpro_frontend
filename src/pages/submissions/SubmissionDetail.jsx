@@ -9,7 +9,11 @@ export default function SubmissionDetail() {
   const [data, setData] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => { getSubmission(uuid).then(r => setData(r.data)); }, [uuid]);
+useEffect(() => {
+  getSubmission(uuid).then(r => {
+    setData(r.data);
+  });
+}, [uuid]);
 
   if (!data) return <p>Loading...</p>;
   const { submission, images, labelMap } = data;
