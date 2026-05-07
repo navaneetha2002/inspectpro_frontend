@@ -28,8 +28,8 @@ const authApi = axios.create({
   baseURL: 'http://localhost:3000/api'
 });
 
-export const login = (username, password) =>
-  authApi.post('/auth/login', { username, password });
+export const login = (email, password) =>
+  authApi.post('/auth/login', { email, password });
 
 export const register = (username, email, password, location) =>
   authApi.post('/auth/register', { username, email, password, location });

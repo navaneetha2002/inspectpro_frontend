@@ -2,10 +2,9 @@ import { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
 
-function decodeRole(token) {
+function decodeToken(token) {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.role || payload.roles || null;
+    return JSON.parse(atob(token.split('.')[1]));
   } catch {
     return null;
   }
@@ -17,6 +16,8 @@ export function AuthProvider({ children }) {
     const t = localStorage.getItem('token');
     return t ? decodeRole(t) : null;
   });
+
+  const user = token ? decodeToken(token) : null;
 
   function saveToken(newToken) {
     localStorage.setItem('token', newToken);
@@ -31,7 +32,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, role, saveToken, clearToken, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ token, user, saveToken, clearToken, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   );

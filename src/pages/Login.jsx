@@ -4,7 +4,7 @@ import { login } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
@@ -19,7 +19,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const res = await login(username, password);
+      const res = await login(email, password);
       const token = res.data.token;
       saveToken(token);
       navigate(from, { replace: true });
@@ -36,11 +36,11 @@ export default function Login() {
         <h2>Sign In</h2>
         {error && <p className="login-error">{error}</p>}
         <label>
-          Username
+          Email
           <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
             autoFocus
           />
