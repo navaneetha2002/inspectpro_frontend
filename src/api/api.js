@@ -85,5 +85,6 @@ export const getAllPermissions      = ()              => authApi.get('/permissio
 export const getRolesWithPerms      = ()              => authApi.get('/permissions/roles');
 export const getRolePerms           = (roleName)      => authApi.get(`/permissions/roles/${roleName}`);
 export const putRolePermissions     = (roleName, ids) => authApi.put(`/permissions/roles/${roleName}`, { permissions: ids });
+export const createRole             = (name, description) => authApi.post('/auth/roles', { name, description });
 
 export default api;

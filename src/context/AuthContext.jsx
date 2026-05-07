@@ -54,12 +54,13 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       token,
       role,
+      user,
       username,
       userId,
       location_id,
-      location_slug: location_slug || savedSlug,  // ← JWT first, fallback to stored
+      location_slug: location_slug || savedSlug,
       saveToken,
-      saveLocationSlug,                            // ← expose this
+      saveLocationSlug,
       clearToken,
       isAuthenticated: !!token,
       isGlobalAdmin: role === 'global_admin',

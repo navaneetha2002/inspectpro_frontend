@@ -6,18 +6,13 @@ import { PERMISSIONS } from '../config/permissions';
 import ConfirmModal from './ConfirmModal';
 
 export default function Navbar() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { isAuthenticated, clearToken, isGlobalAdmin, location_slug } = useAuth();
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
-  const { isAuthenticated, clearToken, role, user } = useAuth();
+
+  const { isAuthenticated, clearToken, isGlobalAdmin, location_slug, username, role } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
-
-  const initials = user
-    ? (user.username || user.name || user.email || '?').slice(0, 2).toUpperCase()
-    : '?';
 
   function handleLogout() {
     clearToken();
@@ -46,92 +41,60 @@ export default function Navbar() {
         <div className={`nav-links${menuOpen ? ' open' : ''}`}>
           {isAuthenticated && (
             <>
-              <NavLink to="/" end onClick={close}>Locations</NavLink>
-              {hasPermission(role, PERMISSIONS.VIEW_SUBMISSIONS) && (
+              {isGlobalAdmin ? (
+                <NavLink to="/" end onClick={close}>Locations</NavLink>
+              ) : (
+                <NavLink to={`/location/${location_slug}`} onClick={close}>Home</NavLink>
+              )}
+
+              {hasPermission(PERMISSIONS.VIEW_SUBMISSIONS) && (
                 <NavLink to="/submissions" onClick={close}>Submissions</NavLink>
               )}
-              {hasPermission(role, PERMISSIONS.ADMIN_QUESTIONS) && (
+
+              {isGlobalAdmin && (
+                <>
+                  <NavLink to="/admin/questions"   onClick={close}>Questions Admin</NavLink>
+                  <NavLink to="/admin/locations"   onClick={close}>Locations Admin</NavLink>
+                  <NavLink to="/admin/users"       onClick={close}>Manage Users</NavLink>
+                  <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
+                </>
+              )}
+
+              {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_QUESTIONS) && (
                 <NavLink to="/admin/questions" onClick={close}>Questions Admin</NavLink>
               )}
-              {hasPermission(role, PERMISSIONS.ADMIN_LOCATIONS) && (
+              {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_LOCATIONS) && (
                 <NavLink to="/admin/locations" onClick={close}>Locations Admin</NavLink>
               )}
-              {hasPermission(role, PERMISSIONS.REGISTER_USER) && (
+              {!isGlobalAdmin && hasPermission(PERMISSIONS.REGISTER_USER) && (
                 <NavLink to="/admin/users" onClick={close}>Manage Users</NavLink>
               )}
-              {hasPermission(role, PERMISSIONS.MANAGE_PERMISSIONS) && (
+              {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_PERMISSIONS) && (
                 <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
               )}
-              
+
+              <button
+                className="navbar-avatar"
+                onClick={() => setProfileOpen(p => !p)}
+                aria-label="Profile"
+              >
+                {(username || '?').slice(0, 2).toUpperCase()}
+              </button>
             </>
           )}
         </div>
-
-        {isAuthenticated && (
-          <>
-            {isGlobalAdmin ? (
-              <NavLink to="/" end onClick={close}>Locations</NavLink>
-            ) : (
-              <NavLink to={`/location/${location_slug}`} onClick={close}>Home</NavLink>
-            )}
-
-            {hasPermission(PERMISSIONS.VIEW_SUBMISSIONS) && (
-              <NavLink to="/submissions" onClick={close}>Submissions</NavLink>
-            )}
-
-            {isGlobalAdmin && (
-              <>
-                <NavLink to="/admin/questions"   onClick={close}>Questions Admin</NavLink>
-                <NavLink to="/admin/locations"   onClick={close}>Locations Admin</NavLink>
-                <NavLink to="/admin/register"    onClick={close}>Register User</NavLink>
-                <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
-              </>
-            )}
-
-            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_QUESTIONS) && (
-              <NavLink to="/admin/questions" onClick={close}>Questions Admin</NavLink>
-            )}
-            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_LOCATIONS) && (
-              <NavLink to="/admin/locations" onClick={close}>Locations Admin</NavLink>
-            )}
-            {!isGlobalAdmin && hasPermission(PERMISSIONS.REGISTER_USER) && (
-              <NavLink to="/admin/register" onClick={close}>Register User</NavLink>
-            )}
-            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_PERMISSIONS) && (
-              <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
-            )}
-
-            <button className="btn-logout" onClick={handleLogout}>Logout</button>
-          </>
-          <button
-            className="nav-avatar"
-            onClick={() => setProfileOpen(true)}
-            title="My Profile"
-          >
-            {initials}
-          </button>
-        )}
       </nav>
 
-      {profileOpen && user && (
+      {profileOpen && (
         <div className="profile-modal-overlay" onClick={() => setProfileOpen(false)}>
           <div className="profile-modal" onClick={e => e.stopPropagation()}>
-            <div className="profile-modal-avatar">{initials}</div>
-            <h3 className="profile-modal-name">
-              {user.username || user.name || user.email || 'User'}
-            </h3>
+            <div className="profile-modal-avatar">
+              {(username || '?').slice(0, 2).toUpperCase()}
+            </div>
+            <h3 className="profile-modal-name">{username || 'User'}</h3>
             <dl className="profile-modal-fields">
-              {(user.id || user._id || user.userId || user.sub) && (
-                <><dt>User ID</dt><dd>{user.id || user._id || user.userId || user.sub}</dd></>
-              )}
-              {(user.email || user.emailId) && (
-                <><dt>Email</dt><dd>{user.email || user.emailId}</dd></>
-              )}
-              {user.role && (
-                <><dt>Role</dt><dd>{user.role}</dd></>
-              )}
-              {(user.location || user.city) && (
-                <><dt>Location</dt><dd>{user.location || user.city}</dd></>
+              {role && (
+                <><dt>Role</dt><dd>{role}</dd></>
               )}
             </dl>
             <button
