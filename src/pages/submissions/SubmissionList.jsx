@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSubmissions, deleteSubmission } from '../../api/api';
-import ConfirmModal from '../../components/ConfirmModal';
 import { useAuth } from '../../context/AuthContext';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function SubmissionList() {
   const [submissions, setSubmissions] = useState([]);
@@ -67,16 +67,14 @@ export default function SubmissionList() {
                 <Link to={`/submissions/${s.submission_uuid}`} className="btn btn-sm btn-secondary">
                   View
                 </Link>
-                {isGlobalAdmin && (  // ← only admin can delete
-                  <button
-                    className="btn btn-sm btn-danger"
-                    style={{ marginLeft: 8 }}
-                    onClick={() => handleDelete(s.submission_uuid)}
-                    disabled={deletingUuid === s.submission_uuid}
-                  >
-                    {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}
-                  </button>
-                )}
+                <button
+                  className="btn btn-sm btn-danger"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => setConfirmUuid(s.submission_uuid)}
+                  disabled={deletingUuid === s.submission_uuid}
+                >
+                  {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}
+                </button>
               </td>
             </tr>
           ))}
