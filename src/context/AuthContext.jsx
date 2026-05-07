@@ -10,6 +10,12 @@ function decodeToken(token) {
   }
 }
 
+// Extract role from token
+function decodeRole(token) {
+  const decoded = decodeToken(token);
+  return decoded?.role || null;
+}
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [role, setRole] = useState(() => {
@@ -32,7 +38,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, saveToken, clearToken, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ token, user, role, saveToken, clearToken, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   );
