@@ -1,14 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSubmissions, deleteSubmission } from '../../api/api';
+import { useAuth } from '../../context/AuthContext';
 import ConfirmModal from '../../components/ConfirmModal';
 
 export default function SubmissionList() {
   const [submissions, setSubmissions] = useState([]);
   const [deletingUuid, setDeletingUuid] = useState(null);
+  const { isGlobalAdmin, userId } = useAuth();
   const [confirmUuid,  setConfirmUuid]  = useState(null);
 
-  useEffect(() => { getSubmissions().then(r => setSubmissions(r.data)); }, []);
+  useEffect(() => {
+    getSubmissions().then(r => {
+      const all = r.data;
+      console.log('[DEBUG] userId from token:', userId);
+      console.log('[DEBUG] all keys in a submission:', all[0] ? Object.keys(all[0]) : 'no data');
+      console.log('[DEBUG] first submission full object:', JSON.stringify(all[0]));
+      setSubmissions(
+        isGlobalAdmin ? all : all.filter(s => s.user_id === userId)
+      );
+    });
+  }, [isGlobalAdmin, userId]);
 
   async function handleDelete() {
     const uuid = confirmUuid;
@@ -38,7 +50,9 @@ export default function SubmissionList() {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Date</th><th>Location</th><th>Category</th><th>Images</th><th>Actions</th>
+            <th>Date</th><th>Location</th><th>Category</th><th>Images</th>
+            {isGlobalAdmin && <th>Submitted By</th>}
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -48,10 +62,21 @@ export default function SubmissionList() {
               <td data-label="Location">{s.location_name || '—'}</td>
               <td data-label="Category">{s.category_name}</td>
               <td data-label="Images">{s.image_count}</td>
+              {isGlobalAdmin && <td data-label="Submitted By">{s.submitted_by || '—'}</td>}
               <td data-label="Actions" className="action-cell">
                 <Link to={`/submissions/${s.submission_uuid}`} className="btn btn-sm btn-secondary">
                   View
                 </Link>
+                {isGlobalAdmin && (  // ← only admin can delete
+                  <button
+                    className="btn btn-sm btn-danger"
+                    style={{ marginLeft: 8 }}
+                    onClick={() => handleDelete(s.submission_uuid)}
+                    disabled={deletingUuid === s.submission_uuid}
+                  >
+                    {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}
+                  </button>
+                )}
                 <button
                   className="btn btn-sm btn-danger"
                   style={{ marginLeft: 8 }}

@@ -6,6 +6,8 @@ import { PERMISSIONS } from '../config/permissions';
 import ConfirmModal from './ConfirmModal';
 
 export default function Navbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { isAuthenticated, clearToken, isGlobalAdmin, location_slug } = useAuth();
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
@@ -66,6 +68,41 @@ export default function Navbar() {
         </div>
 
         {isAuthenticated && (
+          <>
+            {isGlobalAdmin ? (
+              <NavLink to="/" end onClick={close}>Locations</NavLink>
+            ) : (
+              <NavLink to={`/location/${location_slug}`} onClick={close}>Home</NavLink>
+            )}
+
+            {hasPermission(PERMISSIONS.VIEW_SUBMISSIONS) && (
+              <NavLink to="/submissions" onClick={close}>Submissions</NavLink>
+            )}
+
+            {isGlobalAdmin && (
+              <>
+                <NavLink to="/admin/questions"   onClick={close}>Questions Admin</NavLink>
+                <NavLink to="/admin/locations"   onClick={close}>Locations Admin</NavLink>
+                <NavLink to="/admin/register"    onClick={close}>Register User</NavLink>
+                <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
+              </>
+            )}
+
+            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_QUESTIONS) && (
+              <NavLink to="/admin/questions" onClick={close}>Questions Admin</NavLink>
+            )}
+            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_LOCATIONS) && (
+              <NavLink to="/admin/locations" onClick={close}>Locations Admin</NavLink>
+            )}
+            {!isGlobalAdmin && hasPermission(PERMISSIONS.REGISTER_USER) && (
+              <NavLink to="/admin/register" onClick={close}>Register User</NavLink>
+            )}
+            {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_PERMISSIONS) && (
+              <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
+            )}
+
+            <button className="btn-logout" onClick={handleLogout}>Logout</button>
+          </>
           <button
             className="nav-avatar"
             onClick={() => setProfileOpen(true)}
