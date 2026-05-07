@@ -20,6 +20,7 @@ export default function Images() {
     const locationSlug = new URLSearchParams(window.location.search).get('location');
     const fd = new FormData();
     fd.append('answers', JSON.stringify(answers));
+    if (locationSlug) fd.append('locationSlug', locationSlug);
     files.forEach(f => fd.append('images', f));
 
     const { data } = await submitForm(slug, fd);
