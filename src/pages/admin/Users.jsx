@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { getUsers, register, deleteUser } from '../../api/api';
+import { getUsers, register, deleteUser, getRolesWithPerms, getLocations } from '../../api/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
 const REQUIRED_COLS = ['username', 'email', 'password', 'location', 'role'];
@@ -19,7 +19,7 @@ function resolveField(headerCell) {
   for (const [field, aliases] of Object.entries(COL_ALIASES)) {
     if (aliases.some(a => h === a || h.includes(a))) return field;
   }
-  return h; // keep unknown headers as-is
+  return h;
 }
 
 function validateRow(row) {
@@ -39,7 +39,9 @@ export default function Users() {
   const [showForm, setShowForm] = useState(false);
 
   // Single-user form
-  const [form, setForm]         = useState({ username: '', email: '', password: '', confirm: '', location: '' });
+  const [form, setForm]             = useState({ username: '', email: '', password: '', confirm: '', location: '', role: '' });
+  const [roles, setRoles]           = useState([]);
+  const [locations, setLocations]   = useState([]);
   const [formError, setFormError]   = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -48,12 +50,16 @@ export default function Users() {
   const [confirmUser, setConfirmUser] = useState(null);
 
   // Bulk upload
-  const fileInputRef            = useRef(null);
-  const [preview, setPreview]   = useState(null);   // { rows: [{...cells, _errors:[]}], fileName }
-  const [bulkProgress, setBulkProgress] = useState(null); // { done, total, results:[{ok,username,msg}] }
+  const fileInputRef                    = useRef(null);
+  const [preview, setPreview]           = useState(null);
+  const [bulkProgress, setBulkProgress] = useState(null);
   const [bulkRunning, setBulkRunning]   = useState(false);
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    getRolesWithPerms().then(res => setRoles(res.data)).catch(() => {});
+    getLocations().then(res => setLocations(Array.isArray(res.data) ? res.data : [])).catch(() => {});
+  }, []);
 
   async function fetchUsers() {
     try {
@@ -97,9 +103,9 @@ export default function Users() {
     }
     setSubmitting(true);
     try {
-      await register(form.username, form.email, form.password, form.location);
+      await register(form.username, form.email, form.password, form.location, form.role);
       setFormSuccess(`User "${form.username}" created successfully.`);
-      setForm({ username: '', email: '', password: '', confirm: '', location: '' });
+      setForm({ username: '', email: '', password: '', confirm: '', location: '', role: '' });
       setShowForm(false);
       fetchUsers();
     } catch (err) {
@@ -124,7 +130,6 @@ export default function Users() {
 
     reader.onload = (ev) => {
       try {
-        // FileReader gives an ArrayBuffer; SheetJS type:'array' needs a Uint8Array
         const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
 
         if (!wb.SheetNames.length) {
@@ -134,11 +139,8 @@ export default function Users() {
         }
 
         const ws = wb.Sheets[wb.SheetNames[0]];
-
-        // header:1 returns every row as a plain string array — immune to merged cells / formatting
         const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-        // First row with at least one non-blank cell is the header row
         const headerIdx = allRows.findIndex(row => row.some(cell => String(cell).trim() !== ''));
         if (headerIdx === -1) {
           setPreview({ rows: [], fileName: file.name, parseError: 'Sheet is empty.' });
@@ -147,8 +149,6 @@ export default function Users() {
         }
 
         const colMap = allRows[headerIdx].map(h => resolveField(String(h)));
-
-        // Take every row after the header that isn't completely blank
         const dataRows = allRows
           .slice(headerIdx + 1)
           .filter(row => row.some(cell => String(cell).trim() !== ''));
@@ -210,7 +210,6 @@ export default function Users() {
 
   return (
     <div>
-      {/* Always in the DOM so the ref stays valid regardless of which panel is open */}
       <input
         ref={fileInputRef}
         type="file"
@@ -263,7 +262,21 @@ export default function Users() {
           <div className="form-row">
             <div className="form-group">
               <label>Location <span className="required">*</span></label>
-              <input name="location" className="form-input" value={form.location} onChange={handleChange} required />
+              <select name="location" className="form-input" value={form.location} onChange={handleChange} required>
+                <option value="">Select a location…</option>
+                {locations.map(l => (
+                  <option key={l.id} value={l.name}>{l.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Role <span className="required">*</span></label>
+              <select name="role" className="form-input" value={form.role} onChange={handleChange} required>
+                <option value="">Select a role…</option>
+                {roles.map(r => (
+                  <option key={r.role} value={r.role}>{r.role}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="form-row">

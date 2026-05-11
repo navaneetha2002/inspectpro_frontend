@@ -20,6 +20,7 @@ import './style.css';
 import Locations             from './pages/Locations';
 import AdminLocations        from './pages/admin/Locations';
 import AdminLocationEdit     from './pages/admin/LocationEdit';
+import CalendarPage          from './pages/Calendar';
 
 // Guard: global_admin-only pages
 function AdminOnly({ children }) {
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="/admin/users"                  element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER}><Users /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/register"                element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER}><Register /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/permissions"             element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_PERMISSIONS}><Permissions /></RequirePermission></ProtectedRoute>} />
+            <Route path="/calendar"                      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SCHEDULES}><CalendarPage /></RequirePermission></ProtectedRoute>} />
           </Routes>
         </div>
       </BrowserRouter>

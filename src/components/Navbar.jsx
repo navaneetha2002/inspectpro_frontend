@@ -51,6 +51,10 @@ export default function Navbar() {
                 <NavLink to="/submissions" onClick={close}>Submissions</NavLink>
               )}
 
+              {(isGlobalAdmin || role === 'local_admin' || hasPermission(PERMISSIONS.VIEW_SCHEDULES)) && (
+                <NavLink to="/calendar" onClick={close}>Schedule</NavLink>
+              )}
+
               {isGlobalAdmin && (
                 <>
                   <NavLink to="/admin/questions"   onClick={close}>Questions Admin</NavLink>

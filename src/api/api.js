@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: 'https://inspectpro-backend.cfapps.eu10-004.hana.ondemand.com/api'
-});
+// Local dev: VITE_API_BASE_URL=/api  → Vite proxy forwards to localhost:3000
+// Production: VITE_API_BASE_URL=https://...hana.ondemand.com/api
+const BASE = import.meta.env.VITE_API_BASE_URL;
+
+const api = axios.create({ baseURL: BASE });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -23,10 +25,7 @@ api.interceptors.response.use(
   }
 );
 
-// Separate instance for auth — hosted on local backend
-const authApi = axios.create({
-  baseURL: 'http://localhost:3000/api'
-});
+const authApi = axios.create({ baseURL: BASE });
 
 authApi.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -35,6 +34,7 @@ authApi.interceptors.request.use((config) => {
   }
   return config;
 });
+
 
 export const login = (username, password) =>
   authApi.post('/auth/login', { username, password });
@@ -86,5 +86,12 @@ export const getRolesWithPerms      = ()              => authApi.get('/permissio
 export const getRolePerms           = (roleName)      => authApi.get(`/permissions/roles/${roleName}`);
 export const putRolePermissions     = (roleName, ids) => authApi.put(`/permissions/roles/${roleName}`, { permissions: ids });
 export const createRole             = (name, description) => authApi.post('/auth/roles', { name, description });
+
+// Schedules
+export const getSchedules         = ()           => authApi.get('/schedules');
+export const createSchedule       = (data)       => authApi.post('/schedules', data);
+export const updateSchedule       = (id, data)   => authApi.put(`/schedules/${id}`, data);
+export const updateScheduleStatus = (id, status) => authApi.patch(`/schedules/${id}/status`, { status });
+export const deleteSchedule       = (id)         => authApi.delete(`/schedules/${id}`);
 
 export default api;
