@@ -1,15 +1,21 @@
 {
+  "welcomeFile": "index.html",
+  "resources": {
+    "directory": "./dist"
+  },
   "routes": [
     {
       "source": "^/api/(.*)$",
       "target": "/api/$1",
       "destination": "inspectpro-backend",
-      "csrfProtection": false
+      "csrfProtection": false,
+      "authenticationType": "none"
     },
     {
-      "source": "^(.*)$",
-      "target": "$1",
-      "service": "html5-apps-repo-rt"
+      "source": "^/(.*)$",
+      "target": "index.html",
+      "localDir": "./dist",
+      "cacheControl": "no-cache, no-store, must-revalidate"
     }
   ]
 }

@@ -7,6 +7,9 @@ export const PERMISSIONS = {
   MANAGE_LOCATIONS:   'manage_locations',
   REGISTER_USER:      'register_user',
   MANAGE_PERMISSIONS: 'manage_permissions',
+  VIEW_SCHEDULES:   'view_schedules',
+  CREATE_SCHEDULE:  'create_schedule',
+  MANAGE_SCHEDULES: 'manage_schedules',
 };
 
 // Human-readable labels for the permissions UI.
@@ -18,4 +21,7 @@ export const PERMISSION_LABELS = {
   manage_locations:   'Manage Locations',
   register_user:      'Register Users',
   manage_permissions: 'Manage Permissions',
+  view_schedules:   'View Schedule',
+  create_schedule:  'Create Schedule',
+  manage_schedules: 'Manage Schedules',
 };

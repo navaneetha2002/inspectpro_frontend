@@ -4,7 +4,7 @@ applications:
     buildpacks:
       - nodejs_buildpack
     path: .
-    services:
-      - PostSQLtest
     env:
       NODE_ENV: production
+      destinations: '[{"name":"inspectpro-backend","url":"https://inspectpro-backend.cfapps.eu10-004.hana.ondemand.com","forwardAuthToken":false}]'
+      APPROUTER_EXTENSIONS_FOLDER: ""

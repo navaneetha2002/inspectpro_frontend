@@ -8,9 +8,15 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "npx serve -s dist -l $PORT"
+    "start": "node node_modules/@sap/approuter/approuter.js"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
+    "@sap/approuter": "^21.4.0",
     "axios": "^1.15.2",
     "jwt-decode": "^4.0.0",
     "react": "^19.2.5",
