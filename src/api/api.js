@@ -46,6 +46,7 @@ export const register = (username, email, password, location, role) =>
 export const getUsers   = ()   => authApi.get('/auth/users');
 export const deleteUser = (id) => authApi.delete(`/auth/users/${id}`);
 
+
 // Categories
 export const getCategories  = ()      => api.get('/categories');
 export const createCategory = (data)  => api.post('/categories', data);
@@ -53,8 +54,16 @@ export const updateCategory = (id, data) => api.put(`/categories/${id}`, data);
 export const deleteCategory = (id)    => api.delete(`/categories/${id}`);
 
 // Form
-export const getFormStep    = (slug, group) => api.get(`/form/${slug}?group=${group}`);
-export const submitForm     = (slug, data)  => authApi.post(`/form/${slug}/submit`, data);
+export const getFormStep             = (slug, group)     => api.get(`/form/${slug}?group=${group}`);
+export const submitForm              = (slug, data)      => authApi.post(`/form/${slug}/submit`, data);
+export const getMySubmissionForForm  = (slug, location, scheduleId) => {
+  const p = new URLSearchParams();
+  if (location)   p.set('location',    location);
+  if (scheduleId) p.set('schedule_id', scheduleId);
+  const qs = p.toString();
+  return authApi.get(`/form/${slug}/my-submission${qs ? `?${qs}` : ''}`);
+};
+export const getMySubmittedForms     = (location)        => authApi.get(`/form/my-submissions${location ? `?location=${location}` : ''}`);
 
 // Questions (admin)
 export const getQuestions   = ()           => api.get('/questions');
@@ -88,10 +97,15 @@ export const putRolePermissions     = (roleName, ids) => authApi.put(`/permissio
 export const createRole             = (name, description) => authApi.post('/auth/roles', { name, description });
 
 // Schedules
-export const getSchedules         = ()           => authApi.get('/schedules');
-export const createSchedule       = (data)       => authApi.post('/schedules', data);
-export const updateSchedule       = (id, data)   => authApi.put(`/schedules/${id}`, data);
-export const updateScheduleStatus = (id, status) => authApi.patch(`/schedules/${id}/status`, { status });
-export const deleteSchedule       = (id)         => authApi.delete(`/schedules/${id}`);
+export const getSchedules             = ()                      => authApi.get('/schedules');
+export const createSchedule           = (data)                   => authApi.post('/schedules', data);
+export const updateSchedule           = (id, data)               => authApi.put(`/schedules/${id}`, data);
+export const updateScheduleStatus     = (id, status, submissionUuid) => authApi.patch(`/schedules/${id}/status`, { status, ...(submissionUuid ? { submission_uuid: submissionUuid } : {}) });
+export const deleteSchedule           = (id)                     => authApi.delete(`/schedules/${id}`);
+export const getInspectors = () =>
+  api.get('/schedules/inspectors');
+
+export const getAttendees = () =>
+  api.get('/schedules/attendees');
 
 export default api;

@@ -18,12 +18,14 @@ export default function Profile() {
     { label: 'Username',  value: user.username },
     { label: 'Email',     value: user.email },
     { label: 'Role',      value: user.role },
-    { label: 'Location',  value: user.location },
+    { label: 'Location', value: user.location || user.location_name }
   ].filter(f => f.value !== undefined && f.value !== null && f.value !== '');
 
   const initials = (user.username || user.email || '?')
     .slice(0, 2)
     .toUpperCase();
+
+    console.log("PROFILE USER =", user);
 
   return (
     <div className="profile-wrapper">

@@ -10,7 +10,7 @@ export default function Navbar() {
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
 
-  const { isAuthenticated, clearToken, isGlobalAdmin, location_slug, username, role } = useAuth();
+  const { isAuthenticated, clearToken, isGlobalAdmin, location_slug, username, role, isScheduleAttendee } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
@@ -23,6 +23,16 @@ export default function Navbar() {
   }
 
   const close = () => setMenuOpen(false);
+
+   // Show schedule if: global admin, local_admin, inspector, coordinator,
+  // has explicit VIEW_SCHEDULES permission, or is an attendee on any schedule
+  const canSeeSchedule =
+    isGlobalAdmin ||
+    role === 'local_admin' ||
+    role === 'inspector' ||
+    role === 'coordinator' ||
+    hasPermission(PERMISSIONS.VIEW_SCHEDULES) ||
+    isScheduleAttendee;
 
   return (
     <>
@@ -52,7 +62,7 @@ export default function Navbar() {
                 <NavLink to="/submissions" onClick={close}>Submissions</NavLink>
               )}
 
-              {(isGlobalAdmin || role === 'local_admin' || hasPermission(PERMISSIONS.VIEW_SCHEDULES)) && (
+              {canSeeSchedule && (
                 <NavLink to="/calendar" onClick={close}>Schedule</NavLink>
               )}
 
