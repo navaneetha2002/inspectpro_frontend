@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { submitForm } from '../api/api';
+import { submitForm, updateScheduleStatus } from '../api/api';
 
 export default function Images() {
   const { slug }        = useParams();
@@ -17,13 +17,28 @@ export default function Images() {
   async function handleSubmit(e) {
     e.preventDefault();
     const answers = JSON.parse(sessionStorage.getItem(`answers_${slug}`) || '{}');
-    const locationSlug = new URLSearchParams(window.location.search).get('location');
+    const params     = new URLSearchParams(window.location.search);
+    const locationSlug = params.get('location');
+    const scheduleId   = params.get('schedule_id');
     const fd = new FormData();
     fd.append('answers', JSON.stringify(answers));
     if (locationSlug) fd.append('locationSlug', locationSlug);
+    if (scheduleId)   fd.append('schedule_id', scheduleId);
     files.forEach(f => fd.append('images', f));
 
     const { data } = await submitForm(slug, fd);
+
+    if (scheduleId) {
+      if (data.submissionUuid) {
+        localStorage.setItem(`schedule_submission_${scheduleId}`, data.submissionUuid);
+      }
+      try {
+        await updateScheduleStatus(scheduleId, 'completed', data.submissionUuid);
+      } catch (err) {
+        console.error('Failed to update schedule after submission:', err);
+      }
+    }
+
     sessionStorage.removeItem(`answers_${slug}`);
     navigate(`/submissions/${data.submissionUuid}/thankyou`);
   }

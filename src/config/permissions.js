@@ -25,3 +25,17 @@ export const PERMISSION_LABELS = {
   create_schedule:  'Create Schedule',
   manage_schedules: 'Manage Schedules',
 };
+
+// Permissions granted to local_admin by default (all except location-related)
+export const LOCAL_ADMIN_DEFAULT_PERMISSIONS = [
+  'view_submissions',
+  'create_submission',
+  'manage_questions',
+  'view_images',
+  'register_user',
+  'manage_permissions',
+  'view_schedules',
+  'create_schedule',
+  'manage_schedules',
+  // NOT included: 'manage_locations'
+];

@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { getSubmission, deleteSubmission } from '../../api/api';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { usePermissions } from '../../context/PermissionsContext';
+import { PERMISSIONS } from '../../config/permissions';
 
 export default function SubmissionDetail() {
   const { uuid } = useParams();
   const navigate = useNavigate();
+  const { isGlobalAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canDelete = isGlobalAdmin || hasPermission(PERMISSIONS.VIEW_SUBMISSIONS);
   const [data, setData] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -41,9 +47,11 @@ useEffect(() => {
         </nav>
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
           <h1>{submission.category_name} Inspection</h1>
-          <button onClick={handleDelete} className="btn btn-danger" disabled={deleting}>
-            {deleting ? 'Deleting...' : 'Delete Submission'}
-          </button>
+          {canDelete && (
+            <button onClick={handleDelete} className="btn btn-danger" disabled={deleting}>
+              {deleting ? 'Deleting...' : 'Delete Submission'}
+            </button>
+          )}
         </div>
       </div>
       <div className="detail-meta">

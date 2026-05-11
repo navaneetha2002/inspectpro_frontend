@@ -13,7 +13,8 @@ import {
   updateSchedule,
   updateScheduleStatus,
   deleteSchedule,
-  getUsers,
+  getInspectors,
+  getAttendees,
   getCategories,
   getLocations,
 } from '../api/api';
@@ -43,14 +44,15 @@ export default function CalendarPage() {
 
   const navigate  = useNavigate();
   const isAdmin   = isGlobalAdmin || role === 'local_admin';
-  const canCreate = isAdmin || hasPermission(PERMISSIONS.CREATE_SCHEDULE);
+  const canCreate = isAdmin || role === 'coordinator' || hasPermission(PERMISSIONS.CREATE_SCHEDULE);
   const canManage = isAdmin || hasPermission(PERMISSIONS.MANAGE_SCHEDULES);
 
   const [events,        setEvents]        = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showForm,      setShowForm]      = useState(false);
   const [form,          setForm]          = useState(EMPTY_FORM);
-  const [users,         setUsers]         = useState([]);
+  const [inspectors, setInspectors] = useState([]);
+  const [attendees, setAttendees] = useState([]);
   const [categories,    setCategories]    = useState([]);
   const [locations,     setLocations]     = useState([]);
   const [loading,       setLoading]       = useState(true);
@@ -59,8 +61,14 @@ export default function CalendarPage() {
 
   const loadSchedules = useCallback(async () => {
     try {
+      console.log('[Calendar] loadSchedules: fetching schedules for userId=', userId, 'role=', role);
       const { data } = await getSchedules();
+      console.log('[Calendar] raw API response:', data);
       const rows = Array.isArray(data) ? data : [];
+      console.log('[Calendar] total schedules received:', rows.length);
+      rows.forEach(s => {
+        console.log(`[Calendar] schedule id=${s.id} title="${s.title}" assigned_to=${s.assigned_to} created_by=${s.created_by} attendee_id=${s.attendee_id} status=${s.status}`);
+      });
       setEvents(
         rows.map(s => ({
           id:              String(s.id),
@@ -71,33 +79,44 @@ export default function CalendarPage() {
           extendedProps:   s,
         }))
       );
-    } catch {
+    } catch (err) {
+      console.error('[Calendar] loadSchedules error:', err?.response?.status, err?.response?.data, err);
       setError('Failed to load schedules.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId, role]);
 
   useEffect(() => {
     loadSchedules();
     if (canCreate || canManage) {
-      Promise.all([getUsers(), getCategories(), getLocations()]).then(
-        ([u, c, l]) => {
-          setUsers(Array.isArray(u.data) ? u.data : []);
-          setCategories(Array.isArray(c.data) ? c.data : []);
-          setLocations(Array.isArray(l.data) ? l.data : []);
-        }
-      ).catch((err) => console.error('Failed to load form data:', err));
+      Promise.all([
+  getInspectors(),
+  getAttendees(),
+  getCategories(),
+  getLocations()
+]).then(
+  ([i, a, c, l]) => {
+    setInspectors(Array.isArray(i.data) ? i.data : []);
+    setAttendees(Array.isArray(a.data) ? a.data : []);
+    setCategories(Array.isArray(c.data) ? c.data : []);
+    setLocations(Array.isArray(l.data) ? l.data : []);
+  }
+).catch((err) => console.error('Failed to load form data:', err));
     }
   }, [canCreate, canManage, loadSchedules]);
 
   function handleEventClick({ event }) {
-    setSelectedEvent(event.extendedProps);
+    const props = event.extendedProps;
+    console.log('[Calendar] event clicked - full schedule data:', props);
+    console.log('[Calendar] attendee_id stored in schedule:', props.attendee_id, '| attendee_name:', props.attendee_name);
+    setSelectedEvent(props);
   }
 
   async function handleCreate(e) {
     e.preventDefault();
     setSubmitting(true);
+    console.log('[Calendar] submitting schedule with form data:', form);
     try {
       await createSchedule({
         title:        form.title,
@@ -141,12 +160,12 @@ export default function CalendarPage() {
 
   const sel = selectedEvent;
 
-  // Who can act on this schedule's inspection buttons:
-  // - the assigned inspector
-  // - the coordinator who created it
   const isAssignedInspector = sel && String(sel.assigned_to) === String(userId);
   const isCreator           = sel && String(sel.created_by)  === String(userId);
-  const canActOnSchedule    = isAdmin || isAssignedInspector || isCreator;
+  const isAttendee          = sel && String(sel.attendee_id) === String(userId);
+  // Attendees can view schedule details but cannot drive the inspection
+ const isCoordinator    = role === 'coordinator';
+const canActOnSchedule = !isCoordinator && (isAdmin || isAssignedInspector || isCreator);
 
   if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
 
@@ -221,7 +240,7 @@ export default function CalendarPage() {
                     onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
                   >
                     <option value="">Select inspector…</option>
-                    {users.map(u => (
+                    {inspectors.map(u => (
                       <option key={u.id} value={u.id}>{u.username}</option>
                     ))}
                   </select>
@@ -238,7 +257,7 @@ export default function CalendarPage() {
                     onChange={e => setForm(f => ({ ...f, attendee_id: e.target.value }))}
                   >
                     <option value="">Select attendee…</option>
-                    {users.map(u => (
+                    {attendees.map(u => (
                       <option key={u.id} value={u.id}>{u.username}</option>
                     ))}
                   </select>
@@ -338,10 +357,35 @@ export default function CalendarPage() {
               <DetailRow label="Attendee"    value={sel.attendee_name    || '—'} />
               <DetailRow label="Created By"  value={sel.created_by_name  || '—'} />
               <DetailRow label="Scheduled"   value={new Date(sel.scheduled_at).toLocaleString()} />
+              {sel.submission_id && (
+                <DetailRow label="Submission ID" value={`#${sel.submission_id}`} />
+              )}
               {sel.notes && <DetailRow label="Notes" value={sel.notes} last />}
             </div>
 
             <div className="modal-actions" style={{ flexWrap: 'wrap', gap: '0.6rem' }}>
+
+              {/* Attendee-only view — info banner + view response when done */}
+              {isAttendee && !canActOnSchedule && (
+                <>
+                  
+                  {sel.status === 'completed' && (
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setSelectedEvent(null);
+                        const uuid = sel.submission_uuid
+                          || localStorage.getItem(`schedule_submission_${sel.id}`);
+                        if (uuid) {
+                          navigate(`/submissions/${uuid}`);
+                        }
+                      }}
+                    >
+                      View Response
+                    </button>
+                  )}
+                </>
+              )}
 
               {/* Start Inspection — pending schedules, assignee or creator */}
               {sel.status === 'pending' && canActOnSchedule && (
@@ -353,10 +397,10 @@ export default function CalendarPage() {
                       setSelectedEvent(null);
                       await loadSchedules();
                       if (sel.category_slug) {
-                        navigate(sel.location_slug
-                          ? `/form/${sel.category_slug}?location=${sel.location_slug}`
-                          : `/form/${sel.category_slug}`
-                        );
+                        const p = new URLSearchParams();
+                        if (sel.location_slug) p.set('location', sel.location_slug);
+                        p.set('schedule_id', sel.id);
+                        navigate(`/form/${sel.category_slug}?${p.toString()}`);
                       }
                     } catch {
                       setError('Failed to start inspection.');
@@ -373,10 +417,10 @@ export default function CalendarPage() {
                   className="btn btn-primary"
                   onClick={() => {
                     setSelectedEvent(null);
-                    navigate(sel.location_slug
-                      ? `/form/${sel.category_slug}?location=${sel.location_slug}`
-                      : `/form/${sel.category_slug}`
-                    );
+                    const p = new URLSearchParams();
+                    if (sel.location_slug) p.set('location', sel.location_slug);
+                    p.set('schedule_id', sel.id);
+                    navigate(`/form/${sel.category_slug}?${p.toString()}`);
                   }}
                 >
                   Open Form
@@ -390,16 +434,25 @@ export default function CalendarPage() {
                 </button>
               )}
 
-              {/* View Submission — completed schedules that have a linked submission */}
-              {sel.status === 'completed' && sel.submission_id && canActOnSchedule && (
+              {/* View Response — completed schedules */}
+              {sel.status === 'completed' && canActOnSchedule && (
                 <button
                   className="btn btn-secondary"
                   onClick={() => {
                     setSelectedEvent(null);
-                    navigate(`/submissions/${sel.submission_uuid || sel.submission_id}`);
+                    const uuid = sel.submission_uuid
+                      || localStorage.getItem(`schedule_submission_${sel.id}`);
+                    if (uuid) {
+                      navigate(`/submissions/${uuid}`);
+                    } else if (sel.category_slug) {
+                      const p = new URLSearchParams();
+                      if (sel.location_slug) p.set('location', sel.location_slug);
+                      p.set('schedule_id', sel.id);
+                      navigate(`/form/${sel.category_slug}?${p.toString()}`);
+                    }
                   }}
                 >
-                  View Submission
+                  View Response
                 </button>
               )}
 

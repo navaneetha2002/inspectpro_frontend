@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useEffect, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -18,11 +18,12 @@ function decodeRole(token) {
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [isScheduleAttendee, setIsScheduleAttendee] = useState(false);
 
   const parsed        = token ? decodeToken(token) : {};
-  const role          = parsed.role || parsed.roles || null;
+  const role = parsed.role || null;
+const userId = parsed.id || null;
   const username      = parsed.username || parsed.sub || null;
-  const userId        = parsed.id || parsed.user_id || null;
   const location_id   = parsed.location_id || null;
   const location_slug = parsed.location_slug || null;
 
@@ -31,7 +32,37 @@ export function AuthProvider({ children }) {
     () => localStorage.getItem('location_slug')
   );
 
-  const user = token ? decodeToken(token) : null;
+ const [user, setUser] = useState(null);
+
+ useEffect(() => {
+  if (!token) {
+    setUser(null);
+    return;
+  }
+
+  const base = import.meta.env.VITE_API_BASE_URL;
+
+  fetch(`${base}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+    .then(res => res.json())
+    .then(data => setUser(data))
+    .catch(() => setUser(null));
+}, [token]);
+
+   useEffect(() => {
+    if (!userId || !token) {
+      setIsScheduleAttendee(false);
+      return;
+    }
+    const base = import.meta.env.VITE_API_BASE_URL;
+    fetch(`${base}/schedules/is-attendee`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : { is_attendee: false })
+      .then(data => setIsScheduleAttendee(!!data?.is_attendee))
+      .catch(() => setIsScheduleAttendee(false));
+  }, [userId, token]);
 
   function saveToken(newToken) {
     localStorage.setItem('token', newToken);
@@ -64,6 +95,7 @@ export function AuthProvider({ children }) {
       clearToken,
       isAuthenticated: !!token,
       isGlobalAdmin: role === 'global_admin',
+      isScheduleAttendee,
     }}>
       {children}
     </AuthContext.Provider>

@@ -39,6 +39,21 @@ function RequirePermission({ permission, children }) {
     : <Navigate to="/categories" replace />;
 }
 
+// Guard: calendar access for admins, inspectors, coordinators, attendees
+function RequireCalendarAccess({ children }) {
+  const { isGlobalAdmin, role, isScheduleAttendee } = useAuth();
+  const { hasPermission, loading } = usePermissions();
+  if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
+  const canAccess =
+    isGlobalAdmin ||
+    role === 'local_admin' ||
+    role === 'inspector' ||
+    role === 'coordinator' ||
+    hasPermission(PERMISSIONS.VIEW_SCHEDULES) ||
+    isScheduleAttendee;
+  return canAccess ? children : <Navigate to="/categories" replace />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -69,7 +84,15 @@ export default function App() {
             <Route path="/form/:slug/images"             element={<ProtectedRoute><Images /></ProtectedRoute>} />
             <Route path="/submissions/:uuid/thankyou"    element={<ProtectedRoute><ThankYou /></ProtectedRoute>} />
             <Route path="/submissions"                   element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SUBMISSIONS}><SubmissionList /></RequirePermission></ProtectedRoute>} />
-            <Route path="/submissions/:uuid"             element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SUBMISSIONS}><SubmissionDetail /></RequirePermission></ProtectedRoute>} />
+            <Route path="/submissions/:uuid"             element={<ProtectedRoute><SubmissionDetail /></ProtectedRoute>} />
+            {/* Calendar — inspectors, coordinators, attendees, admins */}
+            <Route path="/calendar" element={
+              <ProtectedRoute>
+                <RequireCalendarAccess>
+                  <CalendarPage />
+                </RequireCalendarAccess>
+              </ProtectedRoute>
+            } />
             <Route path="/admin/questions"               element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><Questions /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/questions/new"           element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><QuestionForm /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/questions/:id/edit"      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><QuestionForm /></RequirePermission></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { login, getLocationById } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -68,9 +68,6 @@ export default function Login() {
         <button type="submit" className="btn btn-primary" disabled={loading}>
           {loading ? 'Signing in…' : 'Sign In'}
         </button>
-        <p className="auth-switch">
-          New user? <Link to="/register">Create an account</Link>
-        </p>
       </form>
     </div>
   );

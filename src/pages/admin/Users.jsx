@@ -64,6 +64,7 @@ export default function Users() {
   async function fetchUsers() {
     try {
       const res = await getUsers();
+      if (res.data?.length) console.log('[Users] sample user object:', res.data[0]);
       setUsers(res.data);
     } catch {
       setUsers([]);
@@ -273,9 +274,13 @@ export default function Users() {
               <label>Role <span className="required">*</span></label>
               <select name="role" className="form-input" value={form.role} onChange={handleChange} required>
                 <option value="">Select a role…</option>
-                {roles.map(r => (
-                  <option key={r.role} value={r.role}>{r.role}</option>
-                ))}
+                {roles
+    .filter(r => r.role !== 'global_admin')   // 👈 remove this role
+    .map(r => (
+      <option key={r.role} value={r.role}>
+        {r.role}
+      </option>
+    ))}
               </select>
             </div>
           </div>
