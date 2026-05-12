@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function Profile() {
-  const { user, clearToken } = useAuth();
+  const { user, clearToken, location_slug } = useAuth();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -18,7 +18,7 @@ export default function Profile() {
     { label: 'Username',  value: user.username },
     { label: 'Email',     value: user.email },
     { label: 'Role',      value: user.role },
-    { label: 'Location', value: user.location || user.location_name }
+    { label: 'Location', value: user.location || user.location_name || location_slug }
   ].filter(f => f.value !== undefined && f.value !== null && f.value !== '');
 
   const initials = (user.username || user.email || '?')

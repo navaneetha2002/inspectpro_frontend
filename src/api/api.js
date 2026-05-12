@@ -105,7 +105,13 @@ export const deleteSchedule           = (id)                     => authApi.dele
 export const getInspectors = () =>
   api.get('/schedules/inspectors');
 
+export const getInspectorsByExcludingLocation = (locationId) =>
+  api.get(`/schedules/inspectors?exclude_location_id=${locationId}`);
+
 export const getAttendees = () =>
   api.get('/schedules/attendees');
+
+export const getAttendeesByLocation = (locationId) =>
+  api.get(`/schedules/attendees?location_id=${locationId}`);
 
 export default api;

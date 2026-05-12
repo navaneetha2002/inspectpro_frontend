@@ -7,15 +7,29 @@ import ConfirmModal from '../../components/ConfirmModal';
 export default function SubmissionList() {
   const [submissions, setSubmissions] = useState([]);
   const [deletingUuid, setDeletingUuid] = useState(null);
-  const { isGlobalAdmin, userId } = useAuth();
+  const { isGlobalAdmin, userId, role, location_id: userLocationId, user } = useAuth();
   const [confirmUuid,  setConfirmUuid]  = useState(null);
+
+  const isLocalAdmin = role === 'local_admin';
+  const canSeeAll    = isGlobalAdmin || isLocalAdmin;
 
   useEffect(() => {
     getSubmissions().then(r => {
       const all = Array.isArray(r.data) ? r.data : [];
-      setSubmissions(isGlobalAdmin ? all : all.filter(s => s.user_id === userId));
+      if (isGlobalAdmin) {
+        setSubmissions(all);
+      } else if (isLocalAdmin) {
+        setSubmissions(
+          all.filter(s =>
+            (userLocationId && s.location_id === userLocationId) ||
+            (user?.location && s.location_name === user.location)
+          )
+        );
+      } else {
+        setSubmissions(all.filter(s => s.user_id === userId));
+      }
     });
-  }, [isGlobalAdmin, userId]);
+  }, [isGlobalAdmin, isLocalAdmin, userId, userLocationId, user]);
 
   async function handleDelete() {
     const uuid = confirmUuid;
@@ -46,7 +60,7 @@ export default function SubmissionList() {
         <thead>
           <tr>
             <th>Date</th><th>Location</th><th>Category</th><th>Images</th>
-            {isGlobalAdmin && <th>Submitted By</th>}
+            {canSeeAll && <th>Submitted By</th>}
             <th>Actions</th>
           </tr>
         </thead>
@@ -57,16 +71,16 @@ export default function SubmissionList() {
               <td data-label="Location">{s.location_name || '—'}</td>
               <td data-label="Category">{s.category_name}</td>
               <td data-label="Images">{s.image_count}</td>
-              {isGlobalAdmin && <td data-label="Submitted By">{s.submitted_by || '—'}</td>}
+              {canSeeAll && <td data-label="Submitted By">{s.submitted_by || '—'}</td>}
               <td data-label="Actions" className="action-cell">
                 <Link to={`/submissions/${s.submission_uuid}`} className="btn btn-sm btn-secondary">
                   View
                 </Link>
-                {isGlobalAdmin && (  // ← only admin can delete
+                {canSeeAll && (
                   <button
                     className="btn btn-sm btn-danger"
                     style={{ marginLeft: 8 }}
-                    onClick={() => handleDelete(s.submission_uuid)}
+                    onClick={() => setConfirmUuid(s.submission_uuid)}
                     disabled={deletingUuid === s.submission_uuid}
                   >
                     {deletingUuid === s.submission_uuid ? 'Deleting...' : 'Delete'}

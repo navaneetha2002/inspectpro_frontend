@@ -13,9 +13,9 @@ import {
   updateSchedule,
   updateScheduleStatus,
   deleteSchedule,
-  getInspectors,
-  getAttendees,
-  getCategories,
+  getInspectorsByExcludingLocation,
+  getAttendeesByLocation,
+  getLocationCategoriesAssigned,
   getLocations,
 } from '../api/api';
 
@@ -39,22 +39,24 @@ const EMPTY_FORM = {
 };
 
 export default function CalendarPage() {
-  const { isGlobalAdmin, userId, role } = useAuth();
+  const { isGlobalAdmin, userId, role, location_id: userLocationId } = useAuth();
   const { hasPermission } = usePermissions();
 
-  const navigate  = useNavigate();
-  const isAdmin   = isGlobalAdmin || role === 'local_admin';
-  const canCreate = isAdmin || role === 'coordinator' || hasPermission(PERMISSIONS.CREATE_SCHEDULE);
-  const canManage = isAdmin || hasPermission(PERMISSIONS.MANAGE_SCHEDULES);
+  const navigate          = useNavigate();
+  const isAdmin           = isGlobalAdmin || role === 'local_admin';
+  const canCreate         = isAdmin || role === 'coordinator' || hasPermission(PERMISSIONS.CREATE_SCHEDULE);
+  const canManage         = isAdmin || hasPermission(PERMISSIONS.MANAGE_SCHEDULES);
+  const isLocationLocked  = role === 'coordinator' || role === 'local_admin';
 
   const [events,        setEvents]        = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showForm,      setShowForm]      = useState(false);
   const [form,          setForm]          = useState(EMPTY_FORM);
-  const [inspectors,    setInspectors]    = useState([]);
-  const [attendees,     setAttendees]     = useState([]);
-  const [categories,    setCategories]    = useState([]);
-  const [locations,     setLocations]     = useState([]);
+  const [filteredInspectors,  setFilteredInspectors]  = useState([]);
+  const [filteredAttendees,   setFilteredAttendees]   = useState([]);
+  const [filteredCategories,  setFilteredCategories]  = useState([]);
+  const [locationDataLoading, setLocationDataLoading] = useState(false);
+  const [locations,           setLocations]           = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [submitting,    setSubmitting]    = useState(false);
   const [error,         setError]         = useState(null);
@@ -87,22 +89,45 @@ export default function CalendarPage() {
     }
   }, [userId, role]);
 
+  const loadLocationData = useCallback(async (locId) => {
+    setFilteredAttendees([]);
+    setFilteredInspectors([]);
+    setFilteredCategories([]);
+    if (!locId) return;
+    setLocationDataLoading(true);
+    try {
+      const [attendeesRes, inspectorsRes, categoriesRes] = await Promise.all([
+        getAttendeesByLocation(locId),
+        getInspectorsByExcludingLocation(locId),
+        getLocationCategoriesAssigned(locId),
+      ]);
+      setFilteredAttendees(Array.isArray(attendeesRes.data) ? attendeesRes.data : []);
+      setFilteredInspectors(Array.isArray(inspectorsRes.data) ? inspectorsRes.data : []);
+      setFilteredCategories((Array.isArray(categoriesRes.data) ? categoriesRes.data : []).filter(c => c.assigned));
+    } catch {
+      setFilteredAttendees([]);
+      setFilteredInspectors([]);
+      setFilteredCategories([]);
+    } finally {
+      setLocationDataLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadSchedules();
     if (canCreate || canManage) {
-      Promise.all([
-        getInspectors(),
-        getAttendees(),
-        getCategories(),
-        getLocations(),
-      ]).then(([i, a, c, l]) => {
-        setInspectors(Array.isArray(i.data) ? i.data : []);
-        setAttendees(Array.isArray(a.data) ? a.data : []);
-        setCategories(Array.isArray(c.data) ? c.data : []);
-        setLocations(Array.isArray(l.data) ? l.data : []);
-      }).catch((err) => console.error('Failed to load form data:', err));
+      getLocations()
+        .then(l => setLocations(Array.isArray(l.data) ? l.data : []))
+        .catch((err) => console.error('Failed to load locations:', err));
     }
   }, [canCreate, canManage, loadSchedules]);
+
+  useEffect(() => {
+    if (showForm && isLocationLocked && userLocationId) {
+      setForm(f => ({ ...f, location_id: String(userLocationId), attendee_id: '', assigned_to: '', category_id: '' }));
+      loadLocationData(String(userLocationId));
+    }
+  }, [showForm, isLocationLocked, userLocationId, loadLocationData]);
 
   function handleEventClick({ event }) {
     const props = event.extendedProps;
@@ -207,7 +232,7 @@ export default function CalendarPage() {
 
       {/* ── Create Schedule Modal ── */}
       {showForm && canCreate && (
-        <div className="modal-overlay" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }}>
+        <div className="modal-overlay" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setFilteredAttendees([]); setFilteredInspectors([]); setFilteredCategories([]); }}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <h2 className="modal-title">New Inspection Schedule</h2>
             <p className="modal-message" style={{ marginBottom: '1.25rem' }}>
@@ -229,15 +254,67 @@ export default function CalendarPage() {
 
               <div className="form-row">
                 <div className="form-group">
+                  <label>Location <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  {isLocationLocked ? (
+                    <input
+                      className="form-input"
+                      value={locations.find(l => String(l.id) === String(userLocationId))?.name ?? ''}
+                      readOnly
+                      style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }}
+                    />
+                  ) : (
+                    <select
+                      required
+                      className="form-input"
+                      value={form.location_id}
+                      onChange={e => {
+                        const locId = e.target.value;
+                        setForm(f => ({ ...f, location_id: locId, attendee_id: '', assigned_to: '', category_id: '' }));
+                        loadLocationData(locId);
+                      }}
+                    >
+                      <option value="">Select location…</option>
+                      {locations.map(l => (
+                        <option key={l.id} value={l.id}>{l.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>Category</label>
+                  <select
+                    className="form-input"
+                    value={form.category_id}
+                    disabled={!form.location_id || locationDataLoading}
+                    onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
+                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                  >
+                    <option value="">
+                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select category…'}
+                    </option>
+                    {filteredCategories.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
                   <label>Assign To <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <select
                     required
                     className="form-input"
                     value={form.assigned_to}
+                    disabled={!form.location_id || locationDataLoading}
                     onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
+                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                   >
-                    <option value="">Select inspector…</option>
-                    {inspectors.map(u => (
+                    <option value="">
+                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select inspector…'}
+                    </option>
+                    {filteredInspectors.map(u => (
                       <option key={u.id} value={u.id}>{u.username}</option>
                     ))}
                   </select>
@@ -251,41 +328,19 @@ export default function CalendarPage() {
                   <select
                     className="form-input"
                     value={form.attendee_id}
+                    disabled={!form.location_id || locationDataLoading}
                     onChange={e => setForm(f => ({ ...f, attendee_id: e.target.value }))}
+                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                   >
-                    <option value="">Select attendee…</option>
-                    {attendees.map(u => (
+                    <option value="">
+                      {!form.location_id
+                        ? 'Select location first…'
+                        : locationDataLoading
+                        ? 'Loading…'
+                        : 'Select attendee…'}
+                    </option>
+                    {filteredAttendees.map(u => (
                       <option key={u.id} value={u.id}>{u.username}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Category</label>
-                  <select
-                    className="form-input"
-                    value={form.category_id}
-                    onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-                  >
-                    <option value="">Select category…</option>
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Location</label>
-                  <select
-                    className="form-input"
-                    value={form.location_id}
-                    onChange={e => setForm(f => ({ ...f, location_id: e.target.value }))}
-                  >
-                    <option value="">Select location…</option>
-                    {locations.map(l => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
                     ))}
                   </select>
                 </div>
@@ -314,7 +369,7 @@ export default function CalendarPage() {
               </div>
 
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }}>
+                <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setFilteredAttendees([]); setFilteredInspectors([]); setFilteredCategories([]); }}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>

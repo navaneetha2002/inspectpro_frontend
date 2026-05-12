@@ -1,13 +1,45 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getQuestions, deleteQuestion } from '../../api/api';
+import { getQuestions, deleteQuestion, getLocationCategoriesAssigned, getLocations } from '../../api/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Questions() {
+  const { role, location_id, location_slug, user } = useAuth();
+  const isLocalAdmin = role === 'local_admin';
+
   const [questions, setQuestions] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
 
-  useEffect(() => { getQuestions().then(r => setQuestions(Array.isArray(r.data) ? r.data : [])); }, []);
+  useEffect(() => {
+    const load = async () => {
+      const qRes = await getQuestions();
+      const all = Array.isArray(qRes.data) ? qRes.data : [];
+
+      if (!isLocalAdmin) {
+        setQuestions(all);
+        return;
+      }
+
+      // Resolve location ID — from JWT or by matching slug/name in locations list
+      let locId = location_id;
+      if (!locId) {
+        const locsRes = await getLocations();
+        const locs = Array.isArray(locsRes.data) ? locsRes.data : [];
+        const found = locs.find(l => l.slug === location_slug || l.name === user?.location);
+        locId = found?.id;
+      }
+
+      if (!locId) { setQuestions([]); return; }
+
+      const locCatRes = await getLocationCategoriesAssigned(locId);
+      const assignedNames = new Set(
+        (Array.isArray(locCatRes.data) ? locCatRes.data : []).map(c => c.name)
+      );
+      setQuestions(all.filter(q => assignedNames.has(q.category_name)));
+    };
+    load().catch(() => setQuestions([]));
+  }, []);
 
   async function handleDelete() {
     const id = confirmId;

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { getUsers, register, deleteUser, getRolesWithPerms, getLocations } from '../../api/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import { useAuth } from '../../context/AuthContext'; // adjust path to match your project
 
 const REQUIRED_COLS = ['username', 'email', 'password', 'location', 'role'];
 
@@ -34,12 +35,25 @@ function downloadTemplate() {
 }
 
 export default function Users() {
+  // ── Auth ─────────────────────────────────────────────────────
+  const { user: currentUser } = useAuth(); // expects { role, location, ... }
+  const isLocalAdmin = currentUser?.role === 'local_admin';
+
+  // ── State ────────────────────────────────────────────────────
   const [users, setUsers]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  // Single-user form
-  const [form, setForm]             = useState({ username: '', email: '', password: '', confirm: '', location: '', role: '' });
+  // Single-user form — pre-fill location for local_admin
+  const [form, setForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirm: '',
+    location: isLocalAdmin ? (currentUser?.location ?? '') : '',
+    role: '',
+  });
+
   const [roles, setRoles]           = useState([]);
   const [locations, setLocations]   = useState([]);
   const [formError, setFormError]   = useState('');
@@ -57,15 +71,26 @@ export default function Users() {
 
   useEffect(() => {
     fetchUsers();
-    getRolesWithPerms().then(res => setRoles(Array.isArray(res.data) ? res.data : [])).catch(() => {});
-    getLocations().then(res => setLocations(Array.isArray(res.data) ? res.data : [])).catch(() => {});
+    getRolesWithPerms()
+      .then(res => setRoles(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {});
+    getLocations()
+      .then(res => setLocations(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {});
   }, []);
 
   async function fetchUsers() {
     try {
       const res = await getUsers();
       if (res.data?.length) console.log('[Users] sample user object:', res.data[0]);
-      setUsers(Array.isArray(res.data) ? res.data : []);
+      const allUsers = Array.isArray(res.data) ? res.data : [];
+
+      // local_admin only sees users from their own location
+      setUsers(
+        isLocalAdmin
+          ? allUsers.filter(u => u.location === currentUser?.location)
+          : allUsers
+      );
     } catch {
       setUsers([]);
     } finally {
@@ -98,15 +123,27 @@ export default function Users() {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
+
     if (form.password !== form.confirm) {
       setFormError('Passwords do not match.');
       return;
     }
+
+    // local_admin always registers under their own location
+    const locationToSubmit = isLocalAdmin ? (currentUser?.location ?? '') : form.location;
+
     setSubmitting(true);
     try {
-      await register(form.username, form.email, form.password, form.location, form.role);
+      await register(form.username, form.email, form.password, locationToSubmit, form.role);
       setFormSuccess(`User "${form.username}" created successfully.`);
-      setForm({ username: '', email: '', password: '', confirm: '', location: '', role: '' });
+      setForm({
+        username: '',
+        email: '',
+        password: '',
+        confirm: '',
+        location: isLocalAdmin ? (currentUser?.location ?? '') : '',
+        role: '',
+      });
       setShowForm(false);
       fetchUsers();
     } catch (err) {
@@ -159,12 +196,23 @@ export default function Users() {
           colMap.forEach((field, idx) => {
             norm[field] = String(row[idx] ?? '').trim();
           });
+
+          // For local_admin, override the location column with their own location
+          if (isLocalAdmin) {
+            norm.location = currentUser?.location ?? '';
+          }
+
           norm._errors = validateRow(norm);
           return norm;
         });
 
         const detectedFields = new Set(colMap);
-        const missingCols = REQUIRED_COLS.filter(c => !detectedFields.has(c));
+
+        // For local_admin, location column is not required in the sheet
+        const colsToCheck = isLocalAdmin
+          ? REQUIRED_COLS.filter(c => c !== 'location')
+          : REQUIRED_COLS;
+        const missingCols = colsToCheck.filter(c => !detectedFields.has(c));
 
         setPreview({ rows, fileName: file.name, missingCols });
         setBulkProgress(null);
@@ -188,8 +236,12 @@ export default function Users() {
     const results = [];
     for (let i = 0; i < validRows.length; i++) {
       const row = validRows[i];
+
+      // local_admin always uses their own location, even in bulk
+      const locationToSubmit = isLocalAdmin ? (currentUser?.location ?? '') : row.location;
+
       try {
-        await register(row.username, row.email, row.password, row.location, row.role);
+        await register(row.username, row.email, row.password, locationToSubmit, row.role);
         results.push({ ok: true, username: row.username });
       } catch (err) {
         results.push({ ok: false, username: row.username, msg: err.response?.data?.message || 'Failed' });
@@ -224,7 +276,26 @@ export default function Users() {
           <span className="breadcrumb-current">Users Admin</span>
         </nav>
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
-          <h1>Manage Users</h1>
+          <h1>
+            Manage Users
+            {/* Show location badge for local_admin so it's clear whose scope they're in */}
+            {isLocalAdmin && currentUser?.location && (
+              <span
+                style={{
+                  marginLeft: '0.75rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  background: 'var(--primary-light, #dbeafe)',
+                  color: 'var(--primary, #2563eb)',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '999px',
+                  verticalAlign: 'middle',
+                }}
+              >
+                {currentUser.location}
+              </span>
+            )}
+          </h1>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {!showForm && !preview && (
               <>
@@ -234,7 +305,10 @@ export default function Users() {
                 <button className="btn btn-secondary" onClick={() => fileInputRef.current.click()}>
                   Upload Excel
                 </button>
-                <button className="btn btn-primary" onClick={() => { setFormError(''); setShowForm(true); }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => { setFormError(''); setShowForm(true); }}
+                >
                   + Add User
                 </button>
               </>
@@ -250,55 +324,119 @@ export default function Users() {
         <form className="admin-form" onSubmit={handleSubmit} style={{ marginBottom: '2rem' }}>
           <h2 style={{ marginBottom: '1rem' }}>New User</h2>
           {formError && <p className="login-error">{formError}</p>}
+
           <div className="form-row">
             <div className="form-group">
               <label>Username <span className="required">*</span></label>
-              <input name="username" className="form-input" value={form.username} onChange={handleChange} required autoFocus />
+              <input
+                name="username"
+                className="form-input"
+                value={form.username}
+                onChange={handleChange}
+                required
+                autoFocus
+              />
             </div>
             <div className="form-group">
               <label>Email <span className="required">*</span></label>
-              <input name="email" type="email" className="form-input" value={form.email} onChange={handleChange} required />
+              <input
+                name="email"
+                type="email"
+                className="form-input"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
             </div>
           </div>
+
           <div className="form-row">
             <div className="form-group">
               <label>Location <span className="required">*</span></label>
-              <select name="location" className="form-input" value={form.location} onChange={handleChange} required>
-                <option value="">Select a location…</option>
-                {locations.map(l => (
-                  <option key={l.id} value={l.name}>{l.name}</option>
-                ))}
-              </select>
+              {isLocalAdmin ? (
+                // local_admin: locked to their own location, read-only
+                <input
+                  className="form-input"
+                  value={currentUser?.location ?? ''}
+                  readOnly
+                  style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }}
+                />
+              ) : (
+                // global_admin: full dropdown
+                <select
+                  name="location"
+                  className="form-input"
+                  value={form.location}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select a location…</option>
+                  {locations.map(l => (
+                    <option key={l.id} value={l.name}>{l.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
+
             <div className="form-group">
               <label>Role <span className="required">*</span></label>
-              <select name="role" className="form-input" value={form.role} onChange={handleChange} required>
+              <select
+                name="role"
+                className="form-input"
+                value={form.role}
+                onChange={handleChange}
+                required
+              >
                 <option value="">Select a role…</option>
                 {roles
-    .filter(r => r.role !== 'global_admin')   // 👈 remove this role
-    .map(r => (
-      <option key={r.role} value={r.role}>
-        {r.role}
-      </option>
-    ))}
+                  .filter(r => {
+                    // global_admin role is never assignable by anyone here
+                    if (r.role === 'global_admin') return false;
+                    // local_admin cannot assign another local_admin
+                    if (isLocalAdmin && r.role === 'local_admin') return false;
+                    return true;
+                  })
+                  .map(r => (
+                    <option key={r.role} value={r.role}>{r.role}</option>
+                  ))}
               </select>
             </div>
           </div>
+
           <div className="form-row">
             <div className="form-group">
               <label>Password <span className="required">*</span></label>
-              <input name="password" type="password" className="form-input" value={form.password} onChange={handleChange} required />
+              <input
+                name="password"
+                type="password"
+                className="form-input"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
             </div>
             <div className="form-group">
               <label>Confirm Password <span className="required">*</span></label>
-              <input name="confirm" type="password" className="form-input" value={form.confirm} onChange={handleChange} required />
+              <input
+                name="confirm"
+                type="password"
+                className="form-input"
+                value={form.confirm}
+                onChange={handleChange}
+                required
+              />
             </div>
           </div>
+
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? 'Creating…' : 'Create User'}
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setFormError(''); }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => { setShowForm(false); setFormError(''); }}
+            >
               Cancel
             </button>
           </div>
@@ -308,7 +446,14 @@ export default function Users() {
       {/* ── Bulk upload preview ── */}
       {preview && (
         <div className="admin-section" style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.75rem',
+            }}
+          >
             <div>
               <strong>{preview.fileName}</strong>
               <span style={{ marginLeft: '1rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
@@ -319,9 +464,25 @@ export default function Users() {
                   </span>
                 )}
               </span>
+              {/* Show location lock notice for local_admin */}
+              {isLocalAdmin && (
+                <span
+                  style={{
+                    marginLeft: '1rem',
+                    fontSize: '0.8rem',
+                    color: 'var(--primary, #2563eb)',
+                  }}
+                >
+                  Location locked to: <strong>{currentUser?.location}</strong>
+                </span>
+              )}
             </div>
             {!bulkRunning && (
-              <button className="btn btn-secondary" style={{ fontSize: '0.8rem' }} onClick={clearBulk}>
+              <button
+                className="btn btn-secondary"
+                style={{ fontSize: '0.8rem' }}
+                onClick={clearBulk}
+              >
                 Clear
               </button>
             )}
@@ -354,22 +515,43 @@ export default function Users() {
               </thead>
               <tbody>
                 {preview.rows.map((row, i) => {
-                  const result = bulkProgress?.results.find(r => r.username === row.username && preview.rows.indexOf(row) === i);
+                  const result = bulkProgress?.results.find(
+                    r => r.username === row.username && preview.rows.indexOf(row) === i
+                  );
                   const isInvalid = row._errors.length > 0;
                   return (
                     <tr
                       key={i}
                       style={{
                         opacity: isInvalid ? 0.55 : 1,
-                        background: result ? (result.ok ? '#f0fdf4' : '#fef2f2') : undefined,
+                        background: result
+                          ? result.ok ? '#f0fdf4' : '#fef2f2'
+                          : undefined,
                       }}
                     >
                       <td>{i + 1}</td>
-                      <td data-label="Username">{row.username || <em style={{ color: '#ef4444' }}>missing</em>}</td>
-                      <td data-label="Email">{row.email || <em style={{ color: '#ef4444' }}>missing</em>}</td>
-                      <td data-label="Location">{row.location || <em style={{ color: '#ef4444' }}>missing</em>}</td>
-                      <td data-label="Role">{row.role || <em style={{ color: '#ef4444' }}>missing</em>}</td>
-                      <td data-label="Password">{row.password ? '••••••' : <em style={{ color: '#ef4444' }}>missing</em>}</td>
+                      <td data-label="Username">
+                        {row.username || <em style={{ color: '#ef4444' }}>missing</em>}
+                      </td>
+                      <td data-label="Email">
+                        {row.email || <em style={{ color: '#ef4444' }}>missing</em>}
+                      </td>
+                      <td data-label="Location">
+                        {/* Always show the effective location (locked for local_admin) */}
+                        {isLocalAdmin
+                          ? <span style={{ color: 'var(--primary, #2563eb)' }}>{currentUser?.location}</span>
+                          : row.location || <em style={{ color: '#ef4444' }}>missing</em>
+                        }
+                      </td>
+                      <td data-label="Role">
+                        {row.role || <em style={{ color: '#ef4444' }}>missing</em>}
+                      </td>
+                      <td data-label="Password">
+                        {row.password
+                          ? '••••••'
+                          : <em style={{ color: '#ef4444' }}>missing</em>
+                        }
+                      </td>
                       <td data-label="Status">
                         {result ? (
                           result.ok
@@ -391,11 +573,25 @@ export default function Users() {
           {/* Progress bar */}
           {bulkProgress && (
             <div style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.85rem',
+                  marginBottom: '0.25rem',
+                }}
+              >
                 <span>Creating users…</span>
                 <span>{bulkProgress.done} / {bulkProgress.total}</span>
               </div>
-              <div style={{ background: '#e5e7eb', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  background: '#e5e7eb',
+                  borderRadius: '4px',
+                  height: '8px',
+                  overflow: 'hidden',
+                }}
+              >
                 <div
                   style={{
                     width: `${(bulkProgress.done / bulkProgress.total) * 100}%`,
@@ -458,7 +654,10 @@ export default function Users() {
                 users.map(u => {
                   const uid = u.id || u._id;
                   return (
-                    <tr key={uid || u.username} style={{ opacity: deletingId === uid ? 0.4 : 1 }}>
+                    <tr
+                      key={uid || u.username}
+                      style={{ opacity: deletingId === uid ? 0.4 : 1 }}
+                    >
                       <td data-label="Username">{u.username}</td>
                       <td data-label="Email">{u.email}</td>
                       <td data-label="Role">{u.role || '—'}</td>

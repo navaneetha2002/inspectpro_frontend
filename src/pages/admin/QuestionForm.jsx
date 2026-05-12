@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion } from '../../api/api';
+import { getQuestion, getAllQuestions, getCategories, createQuestion, updateQuestion, getLocationCategoriesAssigned, getLocations } from '../../api/api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function QuestionForm() {
   const { id }       = useParams();
   const navigate     = useNavigate();
   const isEdit       = Boolean(id);
+  const { role, location_id, location_slug, user } = useAuth();
+  const isLocalAdmin = role === 'local_admin';
+
   const [categories, setCategories]   = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
   const [form, setForm] = useState({
@@ -15,7 +19,25 @@ export default function QuestionForm() {
   });
 
   useEffect(() => {
-    getCategories().then(r => setCategories(r.data));
+    const loadCategories = async () => {
+      const catsData = (await getCategories()).data;
+      const allCats = Array.isArray(catsData) ? catsData : [];
+      if (!isLocalAdmin) { setCategories(allCats); return; }
+
+      let locId = location_id;
+      if (!locId) {
+        const locsData = (await getLocations()).data;
+        const locs = Array.isArray(locsData) ? locsData : [];
+        const found = locs.find(l => l.slug === location_slug || l.name === user?.location);
+        locId = found?.id;
+      }
+      if (!locId) { setCategories([]); return; }
+
+      const assignedData = (await getLocationCategoriesAssigned(locId)).data;
+      const assignedNames = new Set((Array.isArray(assignedData) ? assignedData : []).map(c => c.name));
+      setCategories(allCats.filter(c => assignedNames.has(c.name)));
+    };
+    loadCategories().catch(() => {});
     getAllQuestions().then(r => setAllQuestions(r.data));
     if (isEdit) {
       getQuestion(id).then(r => {
