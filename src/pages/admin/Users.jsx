@@ -147,7 +147,7 @@ export default function Users() {
       setShowForm(false);
       fetchUsers();
     } catch (err) {
-      setFormError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setFormError(err.response?.data?.error || err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -197,24 +197,28 @@ export default function Users() {
             norm[field] = String(row[idx] ?? '').trim();
           });
 
-          // For local_admin, override the location column with their own location
-          if (isLocalAdmin) {
-            norm.location = currentUser?.location ?? '';
-          }
-
           norm._errors = validateRow(norm);
           return norm;
         });
 
         const detectedFields = new Set(colMap);
 
-        // For local_admin, location column is not required in the sheet
-        const colsToCheck = isLocalAdmin
-          ? REQUIRED_COLS.filter(c => c !== 'location')
-          : REQUIRED_COLS;
-        const missingCols = colsToCheck.filter(c => !detectedFields.has(c));
+        
+       const missingCols = REQUIRED_COLS.filter(c => !detectedFields.has(c));
 
-        setPreview({ rows, fileName: file.name, missingCols });
+        // After
+        let locationError = null;
+        if (isLocalAdmin) {
+          const adminLoc = (currentUser?.location ?? '').trim().toLowerCase();
+          const mismatch = rows.find(
+            r => r.location.trim().toLowerCase() !== adminLoc
+          );
+          if (mismatch) {
+            locationError = `All rows must have location "${currentUser?.location}". Found "${mismatch.location}" — fix your sheet and re-upload.`;
+          }
+        }
+
+        setPreview({ rows, fileName: file.name, missingCols, locationError });
         setBulkProgress(null);
       } catch (err) {
         setPreview({ rows: [], fileName: file.name, parseError: `Parse error: ${err.message}` });
@@ -226,32 +230,33 @@ export default function Users() {
   }
 
   async function handleBulkCreate() {
-    if (!preview) return;
-    const validRows = preview.rows.filter(r => r._errors.length === 0);
-    if (validRows.length === 0) return;
+  console.log('[bulk] preview:', preview);
+  console.log('[bulk] validRows:', preview?.rows.filter(r => r._errors.length === 0));
+  if (!preview) return;
+  const validRows = preview.rows.filter(r => r._errors.length === 0);
+  if (validRows.length === 0) return;
 
-    setBulkRunning(true);
-    setBulkProgress({ done: 0, total: validRows.length, results: [] });
+  setBulkRunning(true);
+  setBulkProgress({ done: 0, total: validRows.length, results: [] });
 
-    const results = [];
-    for (let i = 0; i < validRows.length; i++) {
-      const row = validRows[i];
+  const results = [];
+  for (let i = 0; i < validRows.length; i++) {
+    const row = validRows[i];
 
-      // local_admin always uses their own location, even in bulk
-      const locationToSubmit = isLocalAdmin ? (currentUser?.location ?? '') : row.location;
-
-      try {
-        await register(row.username, row.email, row.password, locationToSubmit, row.role);
-        results.push({ ok: true, username: row.username });
-      } catch (err) {
-        results.push({ ok: false, username: row.username, msg: err.response?.data?.message || 'Failed' });
-      }
-      setBulkProgress({ done: i + 1, total: validRows.length, results: [...results] });
+    try {
+      console.log('[bulk] registering:', row.username, row.email, row.password, row.location, row.role);
+      await register(row.username, row.email, row.password, row.location, row.role);
+      results.push({ ok: true, username: row.username });
+    } catch (err) {
+      console.error('[bulk] error for', row.username, err.response?.status, err.response?.data, err.message, err);
+      results.push({ ok: false, username: row.username, msg: err.response?.data?.error || err.response?.data?.message || 'Failed' });
     }
-
-    setBulkRunning(false);
-    fetchUsers();
+    setBulkProgress({ done: i + 1, total: validRows.length, results: [...results] });
   }
+
+  setBulkRunning(false);
+  fetchUsers();
+}
 
   function clearBulk() {
     setPreview(null);
@@ -492,6 +497,12 @@ export default function Users() {
             <p className="login-error">{preview.parseError}</p>
           )}
 
+           {preview.locationError && (
+            <p className="login-error" style={{ marginBottom: '0.75rem' }}>
+              {preview.locationError}
+            </p>
+          )}
+
           {preview.missingCols?.length > 0 && (
             <p className="login-error" style={{ marginBottom: '0.75rem' }}>
               Column{preview.missingCols.length > 1 ? 's' : ''} not found in sheet:{' '}
@@ -619,7 +630,7 @@ export default function Users() {
           {!bulkProgress && (
             <button
               className="btn btn-primary"
-              disabled={validCount === 0}
+              disabled={validCount === 0 || !!preview.locationError}
               onClick={handleBulkCreate}
             >
               Create {validCount} User{validCount !== 1 ? 's' : ''}

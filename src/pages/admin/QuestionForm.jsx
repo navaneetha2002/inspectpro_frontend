@@ -39,7 +39,7 @@ export default function QuestionForm() {
     };
     loadCategories().catch(() => {});
     getAllQuestions().then(r => setAllQuestions(r.data));
-    if (isEdit) {
+    if (isEdit && id) {
       getQuestion(id).then(r => {
         const q = r.data;
         let options_raw = '';
@@ -58,7 +58,7 @@ export default function QuestionForm() {
 });
       });
     }
-  }, [id]);
+  }, [id, user]);
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
