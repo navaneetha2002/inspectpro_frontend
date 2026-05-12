@@ -83,20 +83,20 @@ const userId = parsed.id || null;
 
   return (
     <AuthContext.Provider value={{
-      token,
-      role,
-      user,
-      username,
-      userId,
-      location_id,
-      location_slug: location_slug || savedSlug,
-      saveToken,
-      saveLocationSlug,
-      clearToken,
-      isAuthenticated: !!token,
-      isGlobalAdmin: role === 'global_admin',
-      isScheduleAttendee,
-    }}>
+  token,
+  role,
+  user,
+  username,
+  userId,
+  location_id,
+  location_slug: location_slug || savedSlug,
+  saveToken,
+  saveLocationSlug,
+  clearToken,
+  isAuthenticated: !!token,
+  isGlobalAdmin: role === 'global_admin',
+  isScheduleAttendee,
+}}>
       {children}
     </AuthContext.Provider>
   );

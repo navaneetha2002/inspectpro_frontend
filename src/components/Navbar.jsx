@@ -9,8 +9,7 @@ export default function Navbar() {
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
-
-  const { isAuthenticated, clearToken, isGlobalAdmin, location_slug, username, role, isScheduleAttendee } = useAuth();
+  const { isAuthenticated, clearToken, isGlobalAdmin, location_slug, user, username, role, isScheduleAttendee } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
@@ -24,8 +23,6 @@ export default function Navbar() {
 
   const close = () => setMenuOpen(false);
 
-   // Show schedule if: global admin, local_admin, inspector, coordinator,
-  // has explicit VIEW_SCHEDULES permission, or is an attendee on any schedule
   const canSeeSchedule =
     isGlobalAdmin ||
     role === 'local_admin' ||
@@ -110,6 +107,9 @@ export default function Navbar() {
             <dl className="profile-modal-fields">
               {role && (
                 <><dt>Role</dt><dd>{role}</dd></>
+              )}
+              {(user?.location || location_slug) && (
+                <><dt>Location</dt><dd>{user?.location || location_slug}</dd></>
               )}
             </dl>
             <button
