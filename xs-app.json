@@ -1,8 +1,5 @@
 {
-  "welcomeFile": "index.html",
-  "resources": {
-    "directory": "./dist"
-  },
+  "welcomeFile": "/index.html",
   "routes": [
     {
       "source": "^/api/(.*)$",
@@ -12,9 +9,14 @@
       "authenticationType": "none"
     },
     {
-      "source": "^/(.*)$",
-      "target": "index.html",
-      "localDir": "./dist",
+      "source": "^(.+\\.[^/]+)$",
+      "target": "$1",
+      "localDir": "dist"
+    },
+    {
+      "source": "^(.*)$",
+      "target": "/index.html",
+      "localDir": "dist",
       "cacheControl": "no-cache, no-store, must-revalidate"
     }
   ]

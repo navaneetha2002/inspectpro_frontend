@@ -51,8 +51,8 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showForm,      setShowForm]      = useState(false);
   const [form,          setForm]          = useState(EMPTY_FORM);
-  const [inspectors, setInspectors] = useState([]);
-  const [attendees, setAttendees] = useState([]);
+  const [inspectors,    setInspectors]    = useState([]);
+  const [attendees,     setAttendees]     = useState([]);
   const [categories,    setCategories]    = useState([]);
   const [locations,     setLocations]     = useState([]);
   const [loading,       setLoading]       = useState(true);
@@ -91,18 +91,16 @@ export default function CalendarPage() {
     loadSchedules();
     if (canCreate || canManage) {
       Promise.all([
-  getInspectors(),
-  getAttendees(),
-  getCategories(),
-  getLocations()
-]).then(
-  ([i, a, c, l]) => {
-    setInspectors(Array.isArray(i.data) ? i.data : []);
-    setAttendees(Array.isArray(a.data) ? a.data : []);
-    setCategories(Array.isArray(c.data) ? c.data : []);
-    setLocations(Array.isArray(l.data) ? l.data : []);
-  }
-).catch((err) => console.error('Failed to load form data:', err));
+        getInspectors(),
+        getAttendees(),
+        getCategories(),
+        getLocations(),
+      ]).then(([i, a, c, l]) => {
+        setInspectors(Array.isArray(i.data) ? i.data : []);
+        setAttendees(Array.isArray(a.data) ? a.data : []);
+        setCategories(Array.isArray(c.data) ? c.data : []);
+        setLocations(Array.isArray(l.data) ? l.data : []);
+      }).catch((err) => console.error('Failed to load form data:', err));
     }
   }, [canCreate, canManage, loadSchedules]);
 
@@ -163,9 +161,8 @@ export default function CalendarPage() {
   const isAssignedInspector = sel && String(sel.assigned_to) === String(userId);
   const isCreator           = sel && String(sel.created_by)  === String(userId);
   const isAttendee          = sel && String(sel.attendee_id) === String(userId);
-  // Attendees can view schedule details but cannot drive the inspection
- const isCoordinator    = role === 'coordinator';
-const canActOnSchedule = !isCoordinator && (isAdmin || isAssignedInspector || isCreator);
+  const isCoordinator       = role === 'coordinator';
+  const canActOnSchedule    = !isCoordinator && (isAdmin || isAssignedInspector || isCreator);
 
   if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
 
@@ -333,6 +330,8 @@ const canActOnSchedule = !isCoordinator && (isAdmin || isAssignedInspector || is
       {sel && (
         <div className="modal-overlay" onClick={() => setSelectedEvent(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+
+            {/* ── Modal Header ── */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div>
                 <h2 className="modal-title">{sel.title}</h2>
@@ -341,6 +340,38 @@ const canActOnSchedule = !isCoordinator && (isAdmin || isAssignedInspector || is
                     {sel.category_name}{sel.location_name ? ` @ ${sel.location_name}` : ''}
                   </span>
                 )}
+
+                {/* ── Role Badges ── */}
+                {(isAssignedInspector || isAttendee) && (
+                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                    {isAssignedInspector && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                        background: '#eff6ff', color: '#1d4ed8',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: 6, padding: '2px 10px',
+                        fontSize: '0.75rem', fontWeight: 600,
+                      }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                        Assigned Inspector
+                      </span>
+                    )}
+                    {isAttendee && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                        background: '#f0fdf4', color: '#166534',
+                        border: '1px solid #bbf7d0',
+                        borderRadius: 6, padding: '2px 10px',
+                        fontSize: '0.75rem', fontWeight: 600,
+                      }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                        Attendee
+                      </span>
+                    )}
+                  </div>
+                )}
+                {/* ── End Role Badges ── */}
+
               </div>
               <span style={{
                 background: STATUS_COLOR[sel.status] ?? '#6b7280',
@@ -365,10 +396,9 @@ const canActOnSchedule = !isCoordinator && (isAdmin || isAssignedInspector || is
 
             <div className="modal-actions" style={{ flexWrap: 'wrap', gap: '0.6rem' }}>
 
-              {/* Attendee-only view — info banner + view response when done */}
+              {/* Attendee-only view — view response when done */}
               {isAttendee && !canActOnSchedule && (
                 <>
-                  
                   {sel.status === 'completed' && (
                     <button
                       className="btn btn-secondary"

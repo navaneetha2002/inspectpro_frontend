@@ -32,12 +32,12 @@ export function PermissionsProvider({ children }) {
     const work = isGlobalAdmin
       ? Promise.all([getAllPermissions(), getRolesWithPerms()])
           .then(([permsRes, rolesRes]) => {
-            const perms = permsRes.data;
+            const perms = Array.isArray(permsRes.data) ? permsRes.data : [];
             setAllPermissions(perms);
             setMyPermissionIds(new Set(perms.map(p => p.id)));
             const byRole = {};
-            for (const r of rolesRes.data) {
-              byRole[r.role] = r.permissions.map(p => p.name);
+            for (const r of (Array.isArray(rolesRes.data) ? rolesRes.data : [])) {
+              byRole[r.role] = Array.isArray(r.permissions) ? r.permissions.map(p => p.name) : [];
             }
             byRole.global_admin = perms.map(p => p.name);
             setRolePermissions(byRole);
