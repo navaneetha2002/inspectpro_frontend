@@ -29,10 +29,10 @@ function AdminOnly({ children }) {
 }
 
 // Guard: permission-gated pages
-function RequirePermission({ permission, children }) {
-  const { isGlobalAdmin } = useAuth();
+function RequirePermission({ permission, allowRoles = [], children }) {
+  const { isGlobalAdmin, role } = useAuth();
   const { hasPermission, loading } = usePermissions();
-  if (isGlobalAdmin) return children;
+  if (isGlobalAdmin || allowRoles.includes(role)) return children;
   if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
   return hasPermission(permission)
     ? children
@@ -93,13 +93,13 @@ export default function App() {
                 </RequireCalendarAccess>
               </ProtectedRoute>
             } />
-            <Route path="/admin/questions"               element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><Questions /></RequirePermission></ProtectedRoute>} />
-            <Route path="/admin/questions/new"           element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><QuestionForm /></RequirePermission></ProtectedRoute>} />
-            <Route path="/admin/questions/:id/edit"      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS}><QuestionForm /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/questions"               element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS} allowRoles={['local_admin']}><Questions /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/questions/new"           element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS} allowRoles={['local_admin']}><QuestionForm /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/questions/:id/edit"      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS} allowRoles={['local_admin']}><QuestionForm /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/locations"               element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocations /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/locations/new"           element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocationEdit /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/locations/:id/edit"      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_LOCATIONS}><AdminLocationEdit /></RequirePermission></ProtectedRoute>} />
-            <Route path="/admin/users"                  element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER}><Users /></RequirePermission></ProtectedRoute>} />
+            <Route path="/admin/users"                  element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER} allowRoles={['local_admin']}><Users /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/register"                element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER}><Register /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/permissions"             element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_PERMISSIONS}><Permissions /></RequirePermission></ProtectedRoute>} />
             <Route path="/calendar"                      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SCHEDULES}><CalendarPage /></RequirePermission></ProtectedRoute>} />

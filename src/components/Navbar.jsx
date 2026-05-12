@@ -75,13 +75,13 @@ export default function Navbar() {
                 </>
               )}
 
-              {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_QUESTIONS) && (
+              {!isGlobalAdmin && (role === 'local_admin' || hasPermission(PERMISSIONS.MANAGE_QUESTIONS)) && (
                 <NavLink to="/admin/questions" onClick={close}>Questions Admin</NavLink>
               )}
               {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_LOCATIONS) && (
                 <NavLink to="/admin/locations" onClick={close}>Locations Admin</NavLink>
               )}
-              {!isGlobalAdmin && hasPermission(PERMISSIONS.REGISTER_USER) && (
+              {!isGlobalAdmin && (role === 'local_admin' || hasPermission(PERMISSIONS.REGISTER_USER)) && (
                 <NavLink to="/admin/users" onClick={close}>Manage Users</NavLink>
               )}
               {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_PERMISSIONS) && (
