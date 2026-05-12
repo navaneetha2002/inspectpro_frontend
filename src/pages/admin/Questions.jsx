@@ -13,15 +13,14 @@ export default function Questions() {
 
   useEffect(() => {
     const load = async () => {
-      const qRes = await getQuestions();
-      const all = Array.isArray(qRes.data) ? qRes.data : [];
+      console.log('[Questions] role:', role, 'location_id:', location_id);
 
       if (!isLocalAdmin) {
-        setQuestions(all);
+        const qRes = await getQuestions();
+        setQuestions(Array.isArray(qRes.data) ? qRes.data : []);
         return;
       }
 
-      // Resolve location ID — from JWT or by matching slug/name in locations list
       let locId = location_id;
       if (!locId) {
         const locsRes = await getLocations();
@@ -32,14 +31,28 @@ export default function Questions() {
 
       if (!locId) { setQuestions([]); return; }
 
-      const locCatRes = await getLocationCategoriesAssigned(locId);
+      const [qRes, locCatRes] = await Promise.all([
+        getQuestions(),
+        getLocationCategoriesAssigned(locId)
+      ]);
+
+      console.log('[Questions] locCatRes.data:', locCatRes.data);
+
+      const all = Array.isArray(qRes.data) ? qRes.data : [];
       const assignedNames = new Set(
-        (Array.isArray(locCatRes.data) ? locCatRes.data : []).map(c => c.name)
-      );
+  (Array.isArray(locCatRes.data) ? locCatRes.data : [])
+    .filter(c => c.assigned)  // <-- add this
+    .map(c => c.name)
+);
+
+      console.log('[Questions] assignedNames:', [...assignedNames]);
+      console.log('[Questions] all categories:', [...new Set(all.map(q => q.category_name))]);
+
       setQuestions(all.filter(q => assignedNames.has(q.category_name)));
     };
+
     load().catch(() => setQuestions([]));
-  }, []);
+  }, [role, location_id, location_slug, user]);
 
   async function handleDelete() {
     const id = confirmId;
