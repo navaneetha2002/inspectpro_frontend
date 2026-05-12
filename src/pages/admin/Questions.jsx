@@ -7,7 +7,7 @@ export default function Questions() {
   const [questions, setQuestions] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
 
-  useEffect(() => { getQuestions().then(r => setQuestions(r.data)); }, []);
+  useEffect(() => { getQuestions().then(r => setQuestions(Array.isArray(r.data) ? r.data : [])); }, []);
 
   async function handleDelete() {
     const id = confirmId;

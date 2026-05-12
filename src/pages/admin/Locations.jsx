@@ -7,7 +7,7 @@ export default function AdminLocations() {
   const [locations, setLocations] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
 
-  useEffect(() => { getLocations().then(r => setLocations(r.data)); }, []);
+  useEffect(() => { getLocations().then(r => setLocations(Array.isArray(r.data) ? r.data : [])); }, []);
 
   async function handleDelete() {
     const id = confirmId;

@@ -12,13 +12,8 @@ export default function SubmissionList() {
 
   useEffect(() => {
     getSubmissions().then(r => {
-      const all = r.data;
-      console.log('[DEBUG] userId from token:', userId);
-      console.log('[DEBUG] all keys in a submission:', all[0] ? Object.keys(all[0]) : 'no data');
-      console.log('[DEBUG] first submission full object:', JSON.stringify(all[0]));
-      setSubmissions(
-        isGlobalAdmin ? all : all.filter(s => s.user_id === userId)
-      );
+      const all = Array.isArray(r.data) ? r.data : [];
+      setSubmissions(isGlobalAdmin ? all : all.filter(s => s.user_id === userId));
     });
   }, [isGlobalAdmin, userId]);
 

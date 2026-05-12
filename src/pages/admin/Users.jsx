@@ -57,7 +57,7 @@ export default function Users() {
 
   useEffect(() => {
     fetchUsers();
-    getRolesWithPerms().then(res => setRoles(res.data)).catch(() => {});
+    getRolesWithPerms().then(res => setRoles(Array.isArray(res.data) ? res.data : [])).catch(() => {});
     getLocations().then(res => setLocations(Array.isArray(res.data) ? res.data : [])).catch(() => {});
   }, []);
 
@@ -65,7 +65,7 @@ export default function Users() {
     try {
       const res = await getUsers();
       if (res.data?.length) console.log('[Users] sample user object:', res.data[0]);
-      setUsers(res.data);
+      setUsers(Array.isArray(res.data) ? res.data : []);
     } catch {
       setUsers([]);
     } finally {

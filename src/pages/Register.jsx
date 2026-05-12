@@ -15,7 +15,7 @@ export default function Register() {
 
   useEffect(() => {
     getRolesWithPerms()
-      .then(res => setRoles(res.data))
+      .then(res => setRoles(Array.isArray(res.data) ? res.data : []))
       .catch(err => setError('Failed to load roles: ' + (err.response?.data?.message || err.message)));
   }, []);
 

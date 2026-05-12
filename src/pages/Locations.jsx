@@ -13,7 +13,7 @@ export default function Locations() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getLocations().then(r => setLocations(r.data));
+    getLocations().then(r => setLocations(Array.isArray(r.data) ? r.data : []));
   }, []);
 
   return (
