@@ -134,8 +134,8 @@ export default function Users() {
 
     setSubmitting(true);
     try {
-      await register(form.username, form.email, form.password, locationToSubmit, form.role);
-      setFormSuccess(`User "${form.username}" created successfully.`);
+      const res = await register(form.username, form.email, form.password, locationToSubmit, form.role);
+      setFormSuccess(typeof res.data === 'string' ? res.data : JSON.stringify(res.data, null, 2));
       setForm({
         username: '',
         email: '',
@@ -317,7 +317,7 @@ export default function Users() {
         </div>
       </div>
 
-      {formSuccess && <p className="login-success">{formSuccess}</p>}
+      {formSuccess && <pre className="login-success" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{formSuccess}</pre>}
 
       {/* ── Single-user form ── */}
       {showForm && (
