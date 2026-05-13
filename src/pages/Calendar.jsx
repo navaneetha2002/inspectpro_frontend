@@ -133,6 +133,7 @@ export default function CalendarPage() {
     const props = event.extendedProps;
     console.log('[Calendar] event clicked - full schedule data:', props);
     console.log('[Calendar] attendee_id stored in schedule:', props.attendee_id, '| attendee_name:', props.attendee_name);
+    console.log('[Calendar] submission_uuid:', props.submission_uuid, 'submission_id:', props.submission_id);
     setSelectedEvent(props);
   }
 
@@ -471,6 +472,22 @@ export default function CalendarPage() {
                   )}
                 </>
               )}
+
+              {isCoordinator && sel.status === 'completed' && (
+  <button
+    className="btn btn-secondary"
+    onClick={() => {
+      setSelectedEvent(null);
+      const uuid = sel.submission_uuid
+        || localStorage.getItem(`schedule_submission_${sel.id}`);
+      if (uuid) {
+        navigate(`/submissions/${uuid}`);
+      }
+    }}
+  >
+    View Response
+  </button>
+)}
 
               {/* Start Inspection — pending schedules, assignee or creator */}
               {sel.status === 'pending' && canActOnSchedule && (
