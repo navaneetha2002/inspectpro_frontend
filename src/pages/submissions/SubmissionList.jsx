@@ -7,7 +7,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 export default function SubmissionList() {
   const [submissions, setSubmissions] = useState([]);
   const [deletingUuid, setDeletingUuid] = useState(null);
-  const { isGlobalAdmin, userId, role, location_id: userLocationId, user } = useAuth();
+  const { isGlobalAdmin, role } = useAuth();
   const [confirmUuid,  setConfirmUuid]  = useState(null);
 
   const isLocalAdmin = role === 'local_admin';
@@ -15,21 +15,9 @@ export default function SubmissionList() {
 
   useEffect(() => {
     getSubmissions().then(r => {
-      const all = Array.isArray(r.data) ? r.data : [];
-      if (isGlobalAdmin) {
-        setSubmissions(all);
-      } else if (isLocalAdmin) {
-        setSubmissions(
-          all.filter(s =>
-            (userLocationId && s.location_id === userLocationId) ||
-            (user?.location && s.location_name === user.location)
-          )
-        );
-      } else {
-        setSubmissions(all.filter(s => s.user_id === userId));
-      }
+      setSubmissions(Array.isArray(r.data) ? r.data : []);
     });
-  }, [isGlobalAdmin, isLocalAdmin, userId, userLocationId, user]);
+  }, []);
 
   async function handleDelete() {
     const uuid = confirmUuid;

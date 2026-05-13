@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';  // ← add Navigate
-import Navbar                from './components/Navbar';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Sidebar               from './components/Sidebar';
 import ProtectedRoute        from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';  // ← add useAuth
 import { PermissionsProvider, usePermissions } from './context/PermissionsContext';
@@ -54,12 +54,12 @@ function RequireCalendarAccess({ children }) {
   return canAccess ? children : <Navigate to="/categories" replace />;
 }
 
-export default function App() {
+function AppLayout() {
+  const { isAuthenticated } = useAuth();
   return (
-    <AuthProvider>
-      <PermissionsProvider>
-      <BrowserRouter>
-        <Navbar />
+    <div className="app-layout">
+      <Sidebar />
+      <div className={`main-content${isAuthenticated ? '' : ' full-width'}`}>
         <div className="container">
           <Routes>
             {/* Public routes */}
@@ -105,7 +105,18 @@ export default function App() {
             <Route path="/calendar"                      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SCHEDULES}><CalendarPage /></RequirePermission></ProtectedRoute>} />
           </Routes>
         </div>
-      </BrowserRouter>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <PermissionsProvider>
+        <BrowserRouter>
+          <AppLayout />
+        </BrowserRouter>
       </PermissionsProvider>
     </AuthProvider>
   );
