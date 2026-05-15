@@ -54,8 +54,8 @@ export function NotificationProvider({ children }) {
 
   async function clearAll() {
     try {
-      await api.delete('/notifications');
-      setNotifications([]);
+      await api.patch('/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     } catch {}
   }
 

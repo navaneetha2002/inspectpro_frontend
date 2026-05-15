@@ -9,10 +9,49 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+const ASSIGNMENT_BADGE = {
+  inspector: { label: 'Inspector',      bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  assignee:  { label: 'Inspector',      bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  attendee:  { label: 'Attendee',       bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+  reviewer:  { label: 'Reviewer',       bg: '#fefce8', color: '#854d0e', border: '#fde047' },
+};
+
+function getAssignmentRole(n) {
+  // 1. explicit field from backend
+  const raw = (n.role || n.assigned_role || n.assignment_role || '').toLowerCase();
+  if (ASSIGNMENT_BADGE[raw]) return raw;
+
+  // 2. notification type field  e.g. "assigned_inspector" / "assigned_attendee"
+  const type = (n.type || n.notification_type || '').toLowerCase();
+  if (type.includes('inspector') || type.includes('assignee')) return 'inspector';
+  if (type.includes('attendee'))  return 'attendee';
+  if (type.includes('reviewer'))  return 'reviewer';
+
+  // 3. parse title / message text as last resort
+  const text = `${n.title || ''} ${n.message || ''}`.toLowerCase();
+  if (text.includes('inspector') || text.includes('assigned to inspect')) return 'inspector';
+  if (text.includes('attendee'))  return 'attendee';
+  if (text.includes('reviewer'))  return 'reviewer';
+
+  return null;
+}
+
+function AssignmentBadge({ notif }) {
+  const key = getAssignmentRole(notif);
+  if (!key) return null;
+  const { label, bg, color, border } = ASSIGNMENT_BADGE[key];
+  return (
+    <span className="notif-assignment-badge" style={{ background: bg, color, border: `1px solid ${border}` }}>
+      {label}
+    </span>
+  );
+}
+
 export default function NotificationBell({ align = 'right' }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotifications();
+  const unreadNotifications = notifications.filter(n => !n.is_read);
 
   useEffect(() => {
     if (!open) return;
@@ -47,7 +86,9 @@ export default function NotificationBell({ align = 'right' }) {
       {open && (
         <div className={`notif-dropdown${align === 'left' ? ' notif-dropdown--left' : ''}`} role="dialog" aria-label="Notifications">
           <div className="notif-header">
-            <span className="notif-title">Notifications</span>
+            <div className="notif-header-top">
+              <span className="notif-title">Notifications</span>
+            </div>
             {unreadCount > 0 && (
               <button className="notif-action-link" onClick={markAllRead}>
                 Mark all read
@@ -56,10 +97,10 @@ export default function NotificationBell({ align = 'right' }) {
           </div>
 
           <div className="notif-list">
-            {notifications.length === 0 ? (
+            {unreadNotifications.length === 0 ? (
               <div className="notif-empty">No notifications</div>
             ) : (
-              notifications.map(n => (
+              unreadNotifications.map(n => (
                 <div
                   key={n.id}
                   className={`notif-item${n.is_read ? '' : ' unread'}`}
@@ -69,6 +110,7 @@ export default function NotificationBell({ align = 'right' }) {
                     {!n.is_read && <span className="notif-dot" aria-hidden="true" />}
                     <div className="notif-item-text">
                       <span className="notif-item-title">{n.title}</span>
+                      <AssignmentBadge notif={n} />
                       <span className="notif-item-msg">{n.message}</span>
                       <span className="notif-item-time">{timeAgo(n.created_at)}</span>
                     </div>
@@ -85,7 +127,7 @@ export default function NotificationBell({ align = 'right' }) {
             )}
           </div>
 
-          {notifications.length > 0 && (
+          {unreadNotifications.length > 0 && (
             <div className="notif-footer">
               <button className="notif-action-link notif-clear" onClick={clearAll}>
                 Clear all
