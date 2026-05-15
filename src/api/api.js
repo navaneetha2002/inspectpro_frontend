@@ -67,7 +67,7 @@ export const getMySubmissionForForm  = (slug, location, scheduleId) => {
 export const getMySubmittedForms     = (location)        => authApi.get(`/form/my-submissions${location ? `?location=${location}` : ''}`);
 
 // Questions (admin)
-export const getQuestions   = ()           => api.get('/questions');
+export const getQuestions   = (params)     => api.get('/questions', { params });
 export const getAllQuestions = ()           => api.get('/questions/all');
 export const getQuestion    = (id)         => api.get(`/questions/${id}`);
 export const createQuestion = (data)       => api.post('/questions', data);

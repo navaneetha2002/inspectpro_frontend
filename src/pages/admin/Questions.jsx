@@ -1,58 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getQuestions, deleteQuestion, getLocationCategoriesAssigned, getLocations } from '../../api/api';
+import { getQuestions, deleteQuestion } from '../../api/api';
 import ConfirmModal from '../../components/ConfirmModal';
-import { useAuth } from '../../context/AuthContext';
 
 export default function Questions() {
-  const { role, location_id, location_slug, user } = useAuth();
-  const isLocalAdmin = role === 'local_admin';
-
   const [questions, setQuestions] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
 
   useEffect(() => {
-    const load = async () => {
-      console.log('[Questions] role:', role, 'location_id:', location_id);
-
-      if (!isLocalAdmin) {
-        const qRes = await getQuestions();
-        setQuestions(Array.isArray(qRes.data) ? qRes.data : []);
-        return;
-      }
-
-      let locId = location_id;
-      if (!locId) {
-        const locsRes = await getLocations();
-        const locs = Array.isArray(locsRes.data) ? locsRes.data : [];
-        const found = locs.find(l => l.slug === location_slug || l.name === user?.location);
-        locId = found?.id;
-      }
-
-      if (!locId) { setQuestions([]); return; }
-
-      const [qRes, locCatRes] = await Promise.all([
-        getQuestions(),
-        getLocationCategoriesAssigned(locId)
-      ]);
-
-      console.log('[Questions] locCatRes.data:', locCatRes.data);
-
-      const all = Array.isArray(qRes.data) ? qRes.data : [];
-      const assignedNames = new Set(
-  (Array.isArray(locCatRes.data) ? locCatRes.data : [])
-    .filter(c => c.assigned)  // <-- add this
-    .map(c => c.name)
-);
-
-      console.log('[Questions] assignedNames:', [...assignedNames]);
-      console.log('[Questions] all categories:', [...new Set(all.map(q => q.category_name))]);
-
-      setQuestions(all.filter(q => assignedNames.has(q.category_name)));
-    };
-
-    load().catch(() => setQuestions([]));
-  }, [role, location_id, location_slug, user]);
+    getQuestions()
+      .then(r => setQuestions(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setQuestions([]));
+  }, []);
 
   async function handleDelete() {
     const id = confirmId;
