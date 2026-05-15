@@ -34,7 +34,11 @@ export default function QuestionForm() {
       if (!locId) { setCategories([]); return; }
 
       const assignedData = (await getLocationCategoriesAssigned(locId)).data;
-      const assignedNames = new Set((Array.isArray(assignedData) ? assignedData : []).map(c => c.name));
+      const assignedNames = new Set(
+        (Array.isArray(assignedData) ? assignedData : [])
+          .filter(c => c.assigned)
+          .map(c => c.name)
+      );
       setCategories(allCats.filter(c => assignedNames.has(c.name)));
     };
     loadCategories().catch(() => {});
