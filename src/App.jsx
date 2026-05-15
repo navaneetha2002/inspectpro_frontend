@@ -3,6 +3,7 @@ import Sidebar               from './components/Sidebar';
 import ProtectedRoute        from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';  // ← add useAuth
 import { PermissionsProvider, usePermissions } from './context/PermissionsContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { PERMISSIONS } from './config/permissions';
 import Home                  from './pages/Home';
 import Form                  from './pages/Form';
@@ -113,11 +114,13 @@ function AppLayout() {
 export default function App() {
   return (
     <AuthProvider>
-      <PermissionsProvider>
-        <BrowserRouter>
-          <AppLayout />
-        </BrowserRouter>
-      </PermissionsProvider>
+      <NotificationProvider>
+        <PermissionsProvider>
+          <BrowserRouter>
+            <AppLayout />
+          </BrowserRouter>
+        </PermissionsProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

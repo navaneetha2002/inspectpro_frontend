@@ -64,6 +64,8 @@ export const getMySubmissionForForm  = (slug, location, scheduleId) => {
   const qs = p.toString();
   return authApi.get(`/form/${slug}/my-submission${qs ? `?${qs}` : ''}`);
 };
+export const updateSubmissionStatus = (uuid, status, review_notes) =>
+  axios.patch(`/api/submissions/${uuid}/status`, { status, review_notes });
 export const getMySubmittedForms     = (location)        => authApi.get(`/form/my-submissions${location ? `?location=${location}` : ''}`);
 
 // Questions (admin)

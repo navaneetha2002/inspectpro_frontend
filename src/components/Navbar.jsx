@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 import ConfirmModal from './ConfirmModal';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const [menuOpen,      setMenuOpen]      = useState(false);
@@ -84,6 +85,8 @@ export default function Navbar() {
               {!isGlobalAdmin && hasPermission(PERMISSIONS.MANAGE_PERMISSIONS) && (
                 <NavLink to="/admin/permissions" onClick={close}>Permissions</NavLink>
               )}
+
+              <NotificationBell />
 
               <button
                 className="navbar-avatar"

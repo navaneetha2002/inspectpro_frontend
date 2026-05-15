@@ -511,7 +511,7 @@ export default function Users() {
             </p>
           )}
 
-          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+          {!preview.locationError && <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
             <table className="data-table">
               <thead>
                 <tr>
@@ -579,10 +579,10 @@ export default function Users() {
                 })}
               </tbody>
             </table>
-          </div>
+          </div>}
 
           {/* Progress bar */}
-          {bulkProgress && (
+          {!preview.locationError && !bulkProgress && (
             <div style={{ marginBottom: '1rem' }}>
               <div
                 style={{
@@ -627,7 +627,7 @@ export default function Users() {
             </div>
           )}
 
-          {!bulkProgress && (
+          {!preview.locationError && !bulkProgress && (
             <button
               className="btn btn-primary"
               disabled={validCount === 0 || !!preview.locationError}
