@@ -1088,6 +1088,212 @@ code { background: #f1f5f9; border-radius: 4px; padding: .1rem .35rem; font-size
   font-weight: 500;
 }
 
+/* ── Notification Bell ───────────────────────────────────────────────────── */
+.notif-bell-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.notif-bell-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background .2s, color .2s;
+}
+.notif-bell-btn:hover {
+  background: rgba(37, 99, 235, .1);
+  color: var(--primary);
+}
+.notif-bell-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.notif-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.notif-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  max-width: calc(100vw - 1rem);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, .14);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.notif-title {
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--text);
+}
+
+.notif-action-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1;
+}
+.notif-action-link:hover { text-decoration: underline; }
+
+.notif-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.notif-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  cursor: default;
+  transition: background .15s;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item.unread {
+  background: #eff6ff;
+  cursor: pointer;
+}
+.notif-item.unread:hover { background: #dbeafe; }
+
+.notif-item-body {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin-top: .35rem;
+}
+
+.notif-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  min-width: 0;
+}
+.notif-item-title {
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notif-item-msg {
+  font-size: .82rem;
+  color: var(--muted);
+  line-height: 1.4;
+  word-break: break-word;
+}
+.notif-item-time {
+  font-size: .75rem;
+  color: var(--muted);
+  opacity: .7;
+}
+
+.notif-item-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 .1rem;
+  border-radius: 4px;
+  transition: color .15s, background .15s;
+  align-self: flex-start;
+}
+.notif-item-delete:hover {
+  color: var(--danger);
+  background: #fee2e2;
+}
+
+.notif-footer {
+  padding: .6rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+.notif-clear { color: var(--danger) !important; }
+
+/* ── Fixed top-right notification bell ───────────────────────────────────── */
+.notif-fixed-bell {
+  position: fixed;
+  top: .85rem;
+  right: 1rem;
+  z-index: 200;
+}
+.notif-fixed-bell .notif-bell-btn {
+  background: var(--surface);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, .12);
+  color: var(--muted);
+}
+.notif-fixed-bell .notif-bell-btn:hover {
+  background: #eff6ff;
+  color: var(--primary);
+}
+
 /* ── Confirmation Modal ──────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;

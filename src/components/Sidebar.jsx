@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { PERMISSIONS } from '../config/permissions';
 import ConfirmModal from './ConfirmModal';
+import NotificationBell from './NotificationBell';
 
 export default function Sidebar() {
   const [sidebarOpen,   setSidebarOpen]   = useState(false);
@@ -147,6 +148,11 @@ export default function Sidebar() {
           onCancel={() => setLogoutConfirm(false)}
         />
       )}
+
+      {/* Fixed top-right notification bell */}
+      <div className="notif-fixed-bell">
+        <NotificationBell />
+      </div>
     </>
   );
 }
