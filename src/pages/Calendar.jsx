@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -16,6 +16,7 @@ import {
   getInspectorsByExcludingLocation,
   getAttendeesByLocation,
   getLocationCategoriesAssigned,
+  getSubmission,
   getLocations,
 } from '../api/api';
 
@@ -38,11 +39,13 @@ const EMPTY_FORM = {
   location_id: '', scheduled_at: '', notes: '',
 };
 
+
 export default function CalendarPage() {
   const { isGlobalAdmin, userId, role, location_id: userLocationId } = useAuth();
   const { hasPermission } = usePermissions();
 
   const navigate          = useNavigate();
+  const [searchParams]    = useSearchParams();
   const isAdmin           = isGlobalAdmin || role === 'local_admin';
   const canCreate         = isAdmin || role === 'coordinator' || hasPermission(PERMISSIONS.CREATE_SCHEDULE);
   const canManage         = isAdmin || hasPermission(PERMISSIONS.MANAGE_SCHEDULES);
@@ -60,6 +63,7 @@ export default function CalendarPage() {
   const [loading,       setLoading]       = useState(true);
   const [submitting,    setSubmitting]    = useState(false);
   const [error,         setError]         = useState(null);
+  const [submissionStatus, setSubmissionStatus] = useState(null);
 
   const loadSchedules = useCallback(async () => {
     try {
@@ -122,6 +126,14 @@ export default function CalendarPage() {
     }
   }, [canCreate, canManage, loadSchedules]);
 
+  // Auto-open a schedule modal when navigated from Inbox (?open=<id>)
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (!openId || !events.length) return;
+    const match = events.find(e => e.id === openId);
+    if (match) setSelectedEvent(match.extendedProps);
+  }, [searchParams, events]);
+
   useEffect(() => {
     if (showForm && isLocationLocked && userLocationId) {
       setForm(f => ({ ...f, location_id: String(userLocationId), attendee_id: '', assigned_to: '', category_id: '' }));
@@ -130,12 +142,20 @@ export default function CalendarPage() {
   }, [showForm, isLocationLocked, userLocationId, loadLocationData]);
 
   function handleEventClick({ event }) {
-    const props = event.extendedProps;
-    console.log('[Calendar] event clicked - full schedule data:', props);
-    console.log('[Calendar] attendee_id stored in schedule:', props.attendee_id, '| attendee_name:', props.attendee_name);
-    console.log('[Calendar] submission_uuid:', props.submission_uuid, 'submission_id:', props.submission_id);
-    setSelectedEvent(props);
+  const props = event.extendedProps;
+  setSelectedEvent(props);
+  setSubmissionStatus(null); // reset on each click
+
+  if (props.status === 'completed') {
+    const uuid = props.submission_uuid
+      || localStorage.getItem(`schedule_submission_${props.id}`);
+    if (uuid) {
+      getSubmission(uuid)
+        .then(r => setSubmissionStatus(r.data?.submission ?? null))
+        .catch(() => setSubmissionStatus(null));
+    }
   }
+}
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -384,8 +404,8 @@ export default function CalendarPage() {
 
       {/* ── Event Detail Modal ── */}
       {sel && (
-        <div className="modal-overlay" onClick={() => setSelectedEvent(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+        <div className="modal-overlay" onClick={() => setSelectedEvent(null)} style={{ alignItems: 'flex-start', overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 440, maxHeight: '90vh', overflowY: 'auto' }}>
 
             {/* ── Modal Header ── */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
@@ -449,6 +469,61 @@ export default function CalendarPage() {
               )}
               {sel.notes && <DetailRow label="Notes" value={sel.notes} last />}
             </div>
+
+            {/* ── Submission status for completed schedules ── */}
+            {sel.status === 'completed' && submissionStatus && (
+              <div style={{
+    marginBottom: '1.25rem', padding: '0.85rem 1rem', borderRadius: 8,
+    background: submissionStatus.status === 'approved' ? '#f0fdf4'
+              : submissionStatus.status === 'rejected' ? '#fef2f2'
+              : '#fefce8',
+    border: `1px solid ${
+      submissionStatus.status === 'approved' ? '#86efac'
+      : submissionStatus.status === 'rejected' ? '#fca5a5'
+      : '#fde047'
+    }`,
+  }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <span style={{
+        fontWeight: 700, fontSize: '0.9rem',
+        color: submissionStatus.status === 'approved' ? '#166534'
+             : submissionStatus.status === 'rejected' ? '#991b1b'
+             : '#854d0e',
+      }}>
+        {submissionStatus.status === 'approved' ? '✓ Approved'
+       : submissionStatus.status === 'rejected' ? '✗ Rejected'
+       : '⏳ Pending Review'}
+      </span>
+      {submissionStatus.reviewed_by_username && (
+        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+          by {submissionStatus.reviewed_by_username}
+        </span>
+      )}
+    </div>
+
+    {submissionStatus.reviewed_at && (
+      <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
+        {new Date(submissionStatus.reviewed_at).toLocaleString()}
+      </div>
+    )}
+
+    {submissionStatus.review_notes && (
+      <div style={{
+        marginTop: '0.5rem', fontSize: '0.85rem',
+        color: '#475569', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem',
+      }}>
+        {submissionStatus.review_notes}
+      </div>
+    )}
+  </div>
+)}
+
+{/* loading state while fetching */}
+{sel.status === 'completed' && !submissionStatus && (
+  <div style={{ marginBottom: '1.25rem', fontSize: '0.85rem', color: '#94a3b8' }}>
+    Loading inspection result…
+  </div>
+)}
 
             <div className="modal-actions" style={{ flexWrap: 'wrap', gap: '0.6rem' }}>
 
