@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
 
 function timeAgo(dateStr) {
@@ -50,8 +51,21 @@ function AssignmentBadge({ notif }) {
 export default function NotificationBell({ align = 'right' }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+  const navigate = useNavigate();
   const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotifications();
   const unreadNotifications = notifications.filter(n => !n.is_read);
+
+  function handleNotifClick(n) {
+    if (!n.is_read) markRead(n.id);
+    setOpen(false);
+    if (!n.action_url) return;
+    const scheduleMatch = n.action_url.match(/\/schedules\/(\d+)/);
+    if (scheduleMatch) {
+      navigate(`/calendar?open=${scheduleMatch[1]}`);
+    } else {
+      navigate(n.action_url);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -104,7 +118,7 @@ export default function NotificationBell({ align = 'right' }) {
                 <div
                   key={n.id}
                   className={`notif-item${n.is_read ? '' : ' unread'}`}
-                  onClick={() => !n.is_read && markRead(n.id)}
+                  onClick={() => handleNotifClick(n)}
                 >
                   <div className="notif-item-body">
                     {!n.is_read && <span className="notif-dot" aria-hidden="true" />}
