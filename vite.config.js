@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://inspectpro-backend.cfapps.eu10-004.hana.ondemand.com',
         changeOrigin: true,
       }
     }
