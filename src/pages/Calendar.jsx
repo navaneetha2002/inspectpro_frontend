@@ -209,6 +209,7 @@ export default function CalendarPage() {
   const isAttendee          = sel && String(sel.attendee_id) === String(userId);
   const isCoordinator       = role === 'coordinator';
   const canActOnSchedule    = !isCoordinator && (isAdmin || isAssignedInspector || isCreator);
+  const isScheduledTimeReached = sel ? Date.now() >= new Date(sel.scheduled_at).getTime() : false;
 
   if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
 
@@ -566,26 +567,37 @@ export default function CalendarPage() {
 
               {/* Start Inspection — pending schedules, assignee or creator */}
               {sel.status === 'pending' && canActOnSchedule && (
-                <button
-                  className="btn btn-primary"
-                  onClick={async () => {
-                    try {
-                      await updateScheduleStatus(sel.id, 'in_progress');
-                      setSelectedEvent(null);
-                      await loadSchedules();
-                      if (sel.category_slug) {
-                        const p = new URLSearchParams();
-                        if (sel.location_slug) p.set('location', sel.location_slug);
-                        p.set('schedule_id', sel.id);
-                        navigate(`/form/${sel.category_slug}?${p.toString()}`);
+                isAdmin || isScheduledTimeReached ? (
+                  <button
+                    className="btn btn-primary"
+                    onClick={async () => {
+                      try {
+                        await updateScheduleStatus(sel.id, 'in_progress');
+                        setSelectedEvent(null);
+                        await loadSchedules();
+                        if (sel.category_slug) {
+                          const p = new URLSearchParams();
+                          if (sel.location_slug) p.set('location', sel.location_slug);
+                          p.set('schedule_id', sel.id);
+                          navigate(`/form/${sel.category_slug}?${p.toString()}`);
+                        }
+                      } catch {
+                        setError('Failed to start inspection.');
                       }
-                    } catch {
-                      setError('Failed to start inspection.');
-                    }
-                  }}
-                >
-                  Start Inspection
-                </button>
+                    }}
+                  >
+                    Start Inspection
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                      Start Inspection
+                    </button>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                      Available from {new Date(sel.scheduled_at).toLocaleString()}
+                    </span>
+                  </div>
+                )
               )}
 
               {/* Open Form — in_progress, assignee or creator */}
