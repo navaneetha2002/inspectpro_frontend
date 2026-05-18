@@ -7,13 +7,17 @@ const NotificationContext = createContext(null);
 export function NotificationProvider({ children }) {
   const { isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     try {
+      setLoading(true);
       const { data } = await api.get('/notifications');
       setNotifications(Array.isArray(data) ? data : []);
     } catch {
       // silent — network errors don't break the app
+    }finally {
+      setLoading(false);
     }
   }, []);
 

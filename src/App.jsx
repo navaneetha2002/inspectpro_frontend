@@ -23,6 +23,9 @@ import AdminLocations        from './pages/admin/Locations';
 import AdminLocationEdit     from './pages/admin/LocationEdit';
 import CalendarPage          from './pages/Calendar';
 import Inbox                 from './pages/Inbox';
+import AttendeeReview from './pages/submissions/AttendeeReview';
+import ReInspect      from './pages/submissions/ReInspect';
+
 
 // Guard: global_admin-only pages
 function AdminOnly({ children }) {
@@ -86,6 +89,8 @@ function AppLayout() {
             <Route path="/form/:slug/images"             element={<ProtectedRoute><Images /></ProtectedRoute>} />
             <Route path="/submissions/:uuid/thankyou"    element={<ProtectedRoute><ThankYou /></ProtectedRoute>} />
             <Route path="/submissions"                   element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SUBMISSIONS}><SubmissionList /></RequirePermission></ProtectedRoute>} />
+            <Route path="/submissions/:uuid/review"    element={<ProtectedRoute><AttendeeReview /></ProtectedRoute>} />
+            <Route path="/submissions/:uuid/reinspect" element={<ProtectedRoute><ReInspect /></ProtectedRoute>} />
             <Route path="/submissions/:uuid"             element={<ProtectedRoute><SubmissionDetail /></ProtectedRoute>} />
             {/* Calendar — inspectors, coordinators, attendees, admins */}
             <Route path="/calendar" element={
@@ -106,6 +111,7 @@ function AppLayout() {
             <Route path="/admin/register"                element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.REGISTER_USER}><Register /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/permissions"             element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_PERMISSIONS}><Permissions /></RequirePermission></ProtectedRoute>} />
             <Route path="/calendar"                      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.VIEW_SCHEDULES}><CalendarPage /></RequirePermission></ProtectedRoute>} />
+            
           </Routes>
         </div>
       </div>
