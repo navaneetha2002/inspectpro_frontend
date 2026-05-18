@@ -719,12 +719,14 @@ code { background: #f1f5f9; border-radius: 4px; padding: .1rem .35rem; font-size
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.35);
-  z-index: 500;
+  z-index: 1000;
   display: flex;
-  align-items: center;
+   align-items: flex-start;
   justify-content: center;
   padding: 1rem;
   overflow-y: auto;
+  display: flex;
+  padding: 2rem 1rem;
 }
 .profile-modal {
   background: var(--surface);
@@ -1161,10 +1163,24 @@ code { background: #f1f5f9; border-radius: 4px; padding: .1rem .35rem; font-size
   padding: .75rem 1rem;
   border-bottom: 1px solid var(--border);
 }
+.notif-header-top {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
 .notif-title {
   font-weight: 700;
   font-size: .95rem;
   color: var(--text);
+}
+.notif-assignment-badge {
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  margin: .15rem 0 .1rem;
 }
 
 .notif-action-link {
