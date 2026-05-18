@@ -22,6 +22,7 @@ import Locations             from './pages/Locations';
 import AdminLocations        from './pages/admin/Locations';
 import AdminLocationEdit     from './pages/admin/LocationEdit';
 import CalendarPage          from './pages/Calendar';
+import Inbox                 from './pages/Inbox';
 
 // Guard: global_admin-only pages
 function AdminOnly({ children }) {
@@ -94,6 +95,7 @@ function AppLayout() {
                 </RequireCalendarAccess>
               </ProtectedRoute>
             } />
+            <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
             <Route path="/admin/questions"               element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS} allowRoles={['local_admin']}><Questions /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/questions/new"           element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS} allowRoles={['local_admin']}><QuestionForm /></RequirePermission></ProtectedRoute>} />
             <Route path="/admin/questions/:id/edit"      element={<ProtectedRoute><RequirePermission permission={PERMISSIONS.MANAGE_QUESTIONS} allowRoles={['local_admin']}><QuestionForm /></RequirePermission></ProtectedRoute>} />

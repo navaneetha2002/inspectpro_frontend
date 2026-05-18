@@ -73,6 +73,8 @@ export default function Sidebar() {
             <NavLink to="/calendar" onClick={close}>Schedule</NavLink>
           )}
 
+          <NavLink to="/inbox" onClick={close}>Inbox</NavLink>
+
           {isGlobalAdmin && (
             <>
               <NavLink to="/admin/questions"   onClick={close}>Questions Admin</NavLink>
