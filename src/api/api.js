@@ -117,4 +117,18 @@ export const getAttendees = () =>
 export const getAttendeesByLocation = (locationId) =>
   api.get(`/schedules/attendees?location_id=${locationId}`);
 
+// Rounds
+export const getRounds              = (uuid)                    => authApi.get(`/submissions/${uuid}/rounds`);
+export const submitRound            = (uuid, formData)          => authApi.post(`/submissions/${uuid}/rounds`, formData);
+export const submitRoundDecision    = (uuid, roundId, status, review_notes) =>
+  authApi.patch(`/submissions/${uuid}/rounds/${roundId}/decision`, { status, review_notes });
+export const submitRemarks          = (uuid, roundId, remarks)  =>
+  authApi.post(`/submissions/${uuid}/rounds/${roundId}/remarks`, { remarks });
+export const uploadAttendeeImages   = (uuid, roundId, formData) =>
+  authApi.post(`/submissions/${uuid}/rounds/${roundId}/attendee-images`, formData);
+export const submitAttendeeReview   = (uuid, roundId)           =>
+  authApi.patch(`/submissions/${uuid}/rounds/${roundId}/attendee-submit`);
+export const getSubmissionHistory   = (uuid)                    => authApi.get(`/submissions/${uuid}/rounds/history`);
+
+
 export default api;

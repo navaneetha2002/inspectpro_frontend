@@ -17,6 +17,7 @@ import {
   getAttendeesByLocation,
   getLocationCategoriesAssigned,
   getSubmission,
+  getRounds,
   getLocations,
 } from '../api/api';
 
@@ -39,42 +40,36 @@ const EMPTY_FORM = {
   location_id: '', scheduled_at: '', notes: '',
 };
 
-
 export default function CalendarPage() {
   const { isGlobalAdmin, userId, role, location_id: userLocationId } = useAuth();
   const { hasPermission } = usePermissions();
 
-  const navigate          = useNavigate();
-  const [searchParams]    = useSearchParams();
-  const isAdmin           = isGlobalAdmin || role === 'local_admin';
-  const canCreate         = isAdmin || role === 'coordinator' || hasPermission(PERMISSIONS.CREATE_SCHEDULE);
-  const canManage         = isAdmin || hasPermission(PERMISSIONS.MANAGE_SCHEDULES);
-  const isLocationLocked  = role === 'coordinator' || role === 'local_admin';
+  const navigate         = useNavigate();
+  const [searchParams]   = useSearchParams();
+  const isAdmin          = isGlobalAdmin || role === 'local_admin';
+  const canCreate        = isAdmin || role === 'coordinator' || hasPermission(PERMISSIONS.CREATE_SCHEDULE);
+  const canManage        = isAdmin || hasPermission(PERMISSIONS.MANAGE_SCHEDULES);
+  const isLocationLocked = role === 'coordinator' || role === 'local_admin';
 
-  const [events,        setEvents]        = useState([]);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [showForm,      setShowForm]      = useState(false);
-  const [form,          setForm]          = useState(EMPTY_FORM);
-  const [filteredInspectors,  setFilteredInspectors]  = useState([]);
-  const [filteredAttendees,   setFilteredAttendees]   = useState([]);
-  const [filteredCategories,  setFilteredCategories]  = useState([]);
-  const [locationDataLoading, setLocationDataLoading] = useState(false);
-  const [locations,           setLocations]           = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [submitting,    setSubmitting]    = useState(false);
-  const [error,         setError]         = useState(null);
-  const [submissionStatus, setSubmissionStatus] = useState(null);
+  const [events,               setEvents]               = useState([]);
+  const [selectedEvent,        setSelectedEvent]        = useState(null);
+  const [showForm,             setShowForm]             = useState(false);
+  const [form,                 setForm]                 = useState(EMPTY_FORM);
+  const [filteredInspectors,   setFilteredInspectors]   = useState([]);
+  const [filteredAttendees,    setFilteredAttendees]    = useState([]);
+  const [filteredCategories,   setFilteredCategories]   = useState([]);
+  const [locationDataLoading,  setLocationDataLoading]  = useState(false);
+  const [locations,            setLocations]            = useState([]);
+  const [loading,              setLoading]              = useState(true);
+  const [submitting,           setSubmitting]           = useState(false);
+  const [error,                setError]                = useState(null);
+  const [submissionStatus,     setSubmissionStatus]     = useState(null);
+  const [submissionRounds,     setSubmissionRounds]     = useState(null);
 
   const loadSchedules = useCallback(async () => {
     try {
-      console.log('[Calendar] loadSchedules: fetching schedules for userId=', userId, 'role=', role);
       const { data } = await getSchedules();
-      console.log('[Calendar] raw API response:', data);
       const rows = Array.isArray(data) ? data : [];
-      console.log('[Calendar] total schedules received:', rows.length);
-      rows.forEach(s => {
-        console.log(`[Calendar] schedule id=${s.id} title="${s.title}" assigned_to=${s.assigned_to} created_by=${s.created_by} attendee_id=${s.attendee_id} status=${s.status}`);
-      });
       setEvents(
         rows.map(s => ({
           id:              String(s.id),
@@ -86,7 +81,7 @@ export default function CalendarPage() {
         }))
       );
     } catch (err) {
-      console.error('[Calendar] loadSchedules error:', err?.response?.status, err?.response?.data, err);
+      console.error('[Calendar] loadSchedules error:', err);
       setError('Failed to load schedules.');
     } finally {
       setLoading(false);
@@ -122,11 +117,10 @@ export default function CalendarPage() {
     if (canCreate || canManage) {
       getLocations()
         .then(l => setLocations(Array.isArray(l.data) ? l.data : []))
-        .catch((err) => console.error('Failed to load locations:', err));
+        .catch(err => console.error('Failed to load locations:', err));
     }
   }, [canCreate, canManage, loadSchedules]);
 
-  // Auto-open a schedule modal when navigated from Inbox (?open=<id>)
   useEffect(() => {
     const openId = searchParams.get('open');
     if (!openId || !events.length) return;
@@ -142,25 +136,28 @@ export default function CalendarPage() {
   }, [showForm, isLocationLocked, userLocationId, loadLocationData]);
 
   function handleEventClick({ event }) {
-  const props = event.extendedProps;
-  setSelectedEvent(props);
-  setSubmissionStatus(null); // reset on each click
+    const props = event.extendedProps;
+    setSelectedEvent(props);
+    setSubmissionStatus(null);
+    setSubmissionRounds(null);
 
-  if (props.status === 'completed') {
-    const uuid = props.submission_uuid
-      || localStorage.getItem(`schedule_submission_${props.id}`);
-    if (uuid) {
-      getSubmission(uuid)
-        .then(r => setSubmissionStatus(r.data?.submission ?? null))
-        .catch(() => setSubmissionStatus(null));
+    if (props.status === 'completed') {
+      const uuid = props.submission_uuid
+        || localStorage.getItem(`schedule_submission_${props.id}`);
+      if (uuid) {
+        getSubmission(uuid)
+          .then(r => setSubmissionStatus(r.data?.submission ?? null))
+          .catch(() => setSubmissionStatus(null));
+        getRounds(uuid)
+          .then(r => setSubmissionRounds(r.data ?? null))
+          .catch(() => setSubmissionRounds(null));
+      }
     }
   }
-}
 
   async function handleCreate(e) {
     e.preventDefault();
     setSubmitting(true);
-    console.log('[Calendar] submitting schedule with form data:', form);
     try {
       await createSchedule({
         title:        form.title,
@@ -203,7 +200,6 @@ export default function CalendarPage() {
   }
 
   const sel = selectedEvent;
-
   const isAssignedInspector = sel && String(sel.assigned_to) === String(userId);
   const isCreator           = sel && String(sel.created_by)  === String(userId);
   const isAttendee          = sel && String(sel.attendee_id) === String(userId);
@@ -259,138 +255,89 @@ export default function CalendarPage() {
             <p className="modal-message" style={{ marginBottom: '1.25rem' }}>
               Assign an inspector to a category and location.
             </p>
-
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="form-group">
                 <label>Title <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input
-                  type="text"
-                  required
-                  className="form-input"
+                <input type="text" required className="form-input"
                   placeholder="e.g. Monthly fire safety check"
                   value={form.title}
-                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                />
+                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label>Location <span style={{ color: 'var(--danger)' }}>*</span></label>
                   {isLocationLocked ? (
-                    <input
-                      className="form-input"
+                    <input className="form-input"
                       value={locations.find(l => String(l.id) === String(userLocationId))?.name ?? ''}
                       readOnly
-                      style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }}
-                    />
+                      style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
                   ) : (
-                    <select
-                      required
-                      className="form-input"
-                      value={form.location_id}
+                    <select required className="form-input" value={form.location_id}
                       onChange={e => {
                         const locId = e.target.value;
                         setForm(f => ({ ...f, location_id: locId, attendee_id: '', assigned_to: '', category_id: '' }));
                         loadLocationData(locId);
-                      }}
-                    >
+                      }}>
                       <option value="">Select location…</option>
-                      {locations.map(l => (
-                        <option key={l.id} value={l.id}>{l.name}</option>
-                      ))}
+                      {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   )}
                 </div>
-
                 <div className="form-group">
                   <label>Category</label>
-                  <select
-                    className="form-input"
-                    value={form.category_id}
+                  <select className="form-input" value={form.category_id}
                     disabled={!form.location_id || locationDataLoading}
                     onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                  >
+                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
                       {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select category…'}
                     </option>
-                    {filteredCategories.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {filteredCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label>Assign To <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select
-                    required
-                    className="form-input"
-                    value={form.assigned_to}
+                  <select required className="form-input" value={form.assigned_to}
                     disabled={!form.location_id || locationDataLoading}
                     onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
-                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                  >
+                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
                       {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select inspector…'}
                     </option>
-                    {filteredInspectors.map(u => (
-                      <option key={u.id} value={u.id}>{u.username}</option>
-                    ))}
+                    {filteredInspectors.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                   </select>
                 </div>
-
                 <div className="form-group">
-                  <label>
-                    Attendee{' '}
-                    <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(location side)</small>
-                  </label>
-                  <select
-                    className="form-input"
-                    value={form.attendee_id}
+                  <label>Attendee <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(location side)</small></label>
+                  <select className="form-input" value={form.attendee_id}
                     disabled={!form.location_id || locationDataLoading}
                     onChange={e => setForm(f => ({ ...f, attendee_id: e.target.value }))}
-                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                  >
+                    style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
-                      {!form.location_id
-                        ? 'Select location first…'
-                        : locationDataLoading
-                        ? 'Loading…'
-                        : 'Select attendee…'}
+                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select attendee…'}
                     </option>
-                    {filteredAttendees.map(u => (
-                      <option key={u.id} value={u.id}>{u.username}</option>
-                    ))}
+                    {filteredAttendees.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                   </select>
                 </div>
               </div>
-
               <div className="form-group">
                 <label>Scheduled At <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input
-                  type="datetime-local"
-                  required
-                  className="form-input"
+                <input type="datetime-local" required className="form-input"
                   value={form.scheduled_at}
-                  onChange={e => setForm(f => ({ ...f, scheduled_at: e.target.value }))}
-                />
+                  onChange={e => setForm(f => ({ ...f, scheduled_at: e.target.value }))} />
               </div>
-
               <div className="form-group">
                 <label>Notes <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(optional)</small></label>
-                <textarea
-                  className="form-input form-textarea"
-                  rows={2}
+                <textarea className="form-input form-textarea" rows={2}
                   placeholder="Any additional instructions…"
                   value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                />
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
-
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setFilteredAttendees([]); setFilteredInspectors([]); setFilteredCategories([]); }}>
+                <button type="button" className="btn btn-secondary"
+                  onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setFilteredAttendees([]); setFilteredInspectors([]); setFilteredCategories([]); }}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
@@ -404,236 +351,240 @@ export default function CalendarPage() {
 
       {/* ── Event Detail Modal ── */}
       {sel && (
-        <div className="modal-overlay" onClick={() => setSelectedEvent(null)} style={{ alignItems: 'flex-start', overflowY: 'auto', padding: '2rem 1rem' }}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 440, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedEvent(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--surface)', borderRadius: 12,
+              width: '100%', maxWidth: 440, maxHeight: '85vh',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+              overflow: 'hidden',
+            }}
+          >
 
-            {/* ── Modal Header ── */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <div>
-                <h2 className="modal-title">{sel.title}</h2>
-                {sel.category_name && (
-                  <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
-                    {sel.category_name}{sel.location_name ? ` @ ${sel.location_name}` : ''}
-                  </span>
+            {/* ── Fixed Header ── */}
+            <div style={{ padding: '1.25rem 1.25rem 1rem', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 className="modal-title" style={{ margin: 0 }}>{sel.title}</h2>
+                  {sel.category_name && (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                      {sel.category_name}{sel.location_name ? ` @ ${sel.location_name}` : ''}
+                    </span>
+                  )}
+                  {(isAssignedInspector || isAttendee) && (
+                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                      {isAssignedInspector && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                          background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                          borderRadius: 6, padding: '2px 10px', fontSize: '0.75rem', fontWeight: 600,
+                        }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                          Assigned Inspector
+                        </span>
+                      )}
+                      {isAttendee && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                          background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0',
+                          borderRadius: 6, padding: '2px 10px', fontSize: '0.75rem', fontWeight: 600,
+                        }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                          Attendee
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <span style={{
+                  background: STATUS_COLOR[sel.status] ?? '#6b7280', color: '#fff',
+                  borderRadius: 6, padding: '3px 10px', fontSize: '0.78rem', fontWeight: 700,
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                  {STATUS_LABEL[sel.status] ?? sel.status}
+                </span>
+              </div>
+            </div>
+
+            {/* ── Scrollable Body ── */}
+            <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 1.25rem' }}>
+              <div style={{ background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: '1rem' }}>
+                <DetailRow label="Assigned To" value={sel.assigned_to_name || `User #${sel.assigned_to}`} />
+                <DetailRow label="Attendee"    value={sel.attendee_name    || '—'} />
+                <DetailRow label="Created By"  value={sel.created_by_name  || '—'} />
+                <DetailRow label="Scheduled"   value={new Date(sel.scheduled_at).toLocaleString()} />
+                {sel.submission_id && (
+                  <DetailRow label="Submission ID" value={`#${sel.submission_id}`} />
                 )}
+                {sel.notes && <DetailRow label="Notes" value={sel.notes} last />}
+              </div>
 
-                {/* ── Role Badges ── */}
-                {(isAssignedInspector || isAttendee) && (
-                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                    {isAssignedInspector && (
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        background: '#eff6ff', color: '#1d4ed8',
-                        border: '1px solid #bfdbfe',
-                        borderRadius: 6, padding: '2px 10px',
-                        fontSize: '0.75rem', fontWeight: 600,
-                      }}>
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
-                        Assigned Inspector
-                      </span>
-                    )}
-                    {isAttendee && (
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        background: '#f0fdf4', color: '#166534',
-                        border: '1px solid #bbf7d0',
-                        borderRadius: 6, padding: '2px 10px',
-                        fontSize: '0.75rem', fontWeight: 600,
-                      }}>
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                        Attendee
+              {/* Submission status block */}
+              {sel.status === 'completed' && submissionStatus && (
+                <div style={{
+                  marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 8,
+                  background: submissionStatus.status === 'approved' ? '#f0fdf4'
+                            : submissionStatus.status === 'rejected' ? '#fef2f2' : '#fefce8',
+                  border: `1px solid ${
+                    submissionStatus.status === 'approved' ? '#86efac'
+                    : submissionStatus.status === 'rejected' ? '#fca5a5' : '#fde047'
+                  }`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{
+                      fontWeight: 700, fontSize: '0.9rem',
+                      color: submissionStatus.status === 'approved' ? '#166534'
+                           : submissionStatus.status === 'rejected' ? '#991b1b' : '#854d0e',
+                    }}>
+                      {submissionStatus.status === 'approved' ? '✓ Approved'
+                     : submissionStatus.status === 'rejected' ? '✗ Rejected'
+                     : '⏳ Pending Review'}
+                    </span>
+                    {submissionStatus.reviewed_by_username && (
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        by {submissionStatus.reviewed_by_username}
                       </span>
                     )}
                   </div>
-                )}
-                {/* ── End Role Badges ── */}
-
-              </div>
-              <span style={{
-                background: STATUS_COLOR[sel.status] ?? '#6b7280',
-                color: '#fff', borderRadius: 6, padding: '3px 10px',
-                fontSize: '0.78rem', fontWeight: 700, whiteSpace: 'nowrap',
-                marginLeft: '0.75rem', alignSelf: 'center',
-              }}>
-                {STATUS_LABEL[sel.status] ?? sel.status}
-              </span>
-            </div>
-
-            <div style={{ background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: '1.25rem' }}>
-              <DetailRow label="Assigned To" value={sel.assigned_to_name || `User #${sel.assigned_to}`} />
-              <DetailRow label="Attendee"    value={sel.attendee_name    || '—'} />
-              <DetailRow label="Created By"  value={sel.created_by_name  || '—'} />
-              <DetailRow label="Scheduled"   value={new Date(sel.scheduled_at).toLocaleString()} />
-              {sel.submission_id && (
-                <DetailRow label="Submission ID" value={`#${sel.submission_id}`} />
-              )}
-              {sel.notes && <DetailRow label="Notes" value={sel.notes} last />}
-            </div>
-
-            {/* ── Submission status for completed schedules ── */}
-            {sel.status === 'completed' && submissionStatus && (
-              <div style={{
-    marginBottom: '1.25rem', padding: '0.85rem 1rem', borderRadius: 8,
-    background: submissionStatus.status === 'approved' ? '#f0fdf4'
-              : submissionStatus.status === 'rejected' ? '#fef2f2'
-              : '#fefce8',
-    border: `1px solid ${
-      submissionStatus.status === 'approved' ? '#86efac'
-      : submissionStatus.status === 'rejected' ? '#fca5a5'
-      : '#fde047'
-    }`,
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <span style={{
-        fontWeight: 700, fontSize: '0.9rem',
-        color: submissionStatus.status === 'approved' ? '#166534'
-             : submissionStatus.status === 'rejected' ? '#991b1b'
-             : '#854d0e',
-      }}>
-        {submissionStatus.status === 'approved' ? '✓ Approved'
-       : submissionStatus.status === 'rejected' ? '✗ Rejected'
-       : '⏳ Pending Review'}
-      </span>
-      {submissionStatus.reviewed_by_username && (
-        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-          by {submissionStatus.reviewed_by_username}
-        </span>
-      )}
-    </div>
-
-    {submissionStatus.reviewed_at && (
-      <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
-        {new Date(submissionStatus.reviewed_at).toLocaleString()}
-      </div>
-    )}
-
-    {submissionStatus.review_notes && (
-      <div style={{
-        marginTop: '0.5rem', fontSize: '0.85rem',
-        color: '#475569', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem',
-      }}>
-        {submissionStatus.review_notes}
-      </div>
-    )}
-  </div>
-)}
-
-{/* loading state while fetching */}
-{sel.status === 'completed' && !submissionStatus && (
-  <div style={{ marginBottom: '1.25rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-    Loading inspection result…
-  </div>
-)}
-
-            <div className="modal-actions" style={{ flexWrap: 'wrap', gap: '0.6rem' }}>
-
-              {/* Attendee-only view — view response when done */}
-              {isAttendee && !canActOnSchedule && (
-                <>
-                  {sel.status === 'completed' && (
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => {
-                        setSelectedEvent(null);
-                        const uuid = sel.submission_uuid
-                          || localStorage.getItem(`schedule_submission_${sel.id}`);
-                        if (uuid) {
-                          navigate(`/submissions/${uuid}`);
-                        }
-                      }}
-                    >
-                      View Response
-                    </button>
+                  {submissionStatus.reviewed_at && (
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
+                      {new Date(submissionStatus.reviewed_at).toLocaleString()}
+                    </div>
                   )}
-                </>
+                  {submissionStatus.review_notes && (
+                    <div style={{
+                      marginTop: '0.5rem', fontSize: '0.85rem', color: '#475569',
+                      borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem',
+                    }}>
+                      {submissionStatus.review_notes}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {sel.status === 'completed' && !submissionStatus && (
+                <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: '#94a3b8' }}>
+                  Loading inspection result…
+                </div>
+              )}
+            </div>
+            {/* ── End Scrollable Body ── */}
+
+            {/* ── Fixed Footer ── */}
+            <div style={{
+              flexShrink: 0, padding: '1rem 1.25rem',
+              borderTop: '1px solid var(--border)',
+              display: 'flex', flexWrap: 'wrap', gap: '0.6rem',
+            }}>
+              {isAttendee && !canActOnSchedule && sel.status === 'completed' && (
+                <button className="btn btn-secondary" onClick={() => {
+                  setSelectedEvent(null);
+                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+                  if (uuid) navigate(`/submissions/${uuid}`);
+                }}>
+                  View Response
+                </button>
               )}
 
               {isCoordinator && sel.status === 'completed' && (
-  <button
-    className="btn btn-secondary"
-    onClick={() => {
-      setSelectedEvent(null);
-      const uuid = sel.submission_uuid
-        || localStorage.getItem(`schedule_submission_${sel.id}`);
-      if (uuid) {
-        navigate(`/submissions/${uuid}`);
-      }
-    }}
-  >
-    View Response
-  </button>
-)}
+                <button className="btn btn-secondary" onClick={() => {
+                  setSelectedEvent(null);
+                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+                  if (uuid) navigate(`/submissions/${uuid}`);
+                }}>
+                  View Response
+                </button>
+              )}
 
-              {/* Start Inspection — pending schedules, assignee or creator */}
               {sel.status === 'pending' && canActOnSchedule && (
-                <button
-                  className="btn btn-primary"
-                  onClick={async () => {
-                    try {
-                      await updateScheduleStatus(sel.id, 'in_progress');
-                      setSelectedEvent(null);
-                      await loadSchedules();
-                      if (sel.category_slug) {
-                        const p = new URLSearchParams();
-                        if (sel.location_slug) p.set('location', sel.location_slug);
-                        p.set('schedule_id', sel.id);
-                        navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                      }
-                    } catch {
-                      setError('Failed to start inspection.');
+                <button className="btn btn-primary" onClick={async () => {
+                  try {
+                    await updateScheduleStatus(sel.id, 'in_progress');
+                    setSelectedEvent(null);
+                    await loadSchedules();
+                    if (sel.category_slug) {
+                      const p = new URLSearchParams();
+                      if (sel.location_slug) p.set('location', sel.location_slug);
+                      p.set('schedule_id', sel.id);
+                      navigate(`/form/${sel.category_slug}?${p.toString()}`);
                     }
-                  }}
-                >
+                  } catch { setError('Failed to start inspection.'); }
+                }}>
                   Start Inspection
                 </button>
               )}
 
-              {/* Open Form — in_progress, assignee or creator */}
               {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && (
-                <button
-                  className="btn btn-primary"
-                  onClick={() => {
-                    setSelectedEvent(null);
-                    const p = new URLSearchParams();
-                    if (sel.location_slug) p.set('location', sel.location_slug);
-                    p.set('schedule_id', sel.id);
-                    navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                  }}
-                >
+                <button className="btn btn-primary" onClick={() => {
+                  setSelectedEvent(null);
+                  const p = new URLSearchParams();
+                  if (sel.location_slug) p.set('location', sel.location_slug);
+                  p.set('schedule_id', sel.id);
+                  navigate(`/form/${sel.category_slug}?${p.toString()}`);
+                }}>
                   Open Form
                 </button>
               )}
 
-              {/* Mark Complete — in_progress, assignee or creator */}
               {sel.status === 'in_progress' && canActOnSchedule && (
                 <button className="btn btn-success" onClick={() => handleStatus(sel.id, 'completed')}>
                   Mark Complete
                 </button>
               )}
 
-              {/* View Response — completed schedules */}
               {sel.status === 'completed' && canActOnSchedule && (
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setSelectedEvent(null);
-                    const uuid = sel.submission_uuid
-                      || localStorage.getItem(`schedule_submission_${sel.id}`);
-                    if (uuid) {
-                      navigate(`/submissions/${uuid}`);
-                    } else if (sel.category_slug) {
-                      const p = new URLSearchParams();
-                      if (sel.location_slug) p.set('location', sel.location_slug);
-                      p.set('schedule_id', sel.id);
-                      navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                    }
-                  }}
-                >
+                <button className="btn btn-secondary" onClick={() => {
+                  setSelectedEvent(null);
+                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+                  if (uuid) {
+                    navigate(`/submissions/${uuid}`);
+                  } else if (sel.category_slug) {
+                    const p = new URLSearchParams();
+                    if (sel.location_slug) p.set('location', sel.location_slug);
+                    p.set('schedule_id', sel.id);
+                    navigate(`/form/${sel.category_slug}?${p.toString()}`);
+                  }
+                }}>
                   View Response
                 </button>
               )}
 
-              {/* Delete — admins and creators only, not if completed */}
+              {/* Review & Add Remarks — attendee only, when submission is rejected and rounds remain */}
+              {sel.status === 'completed' && isAttendee && role !== 'inspector' &&
+               (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' &&
+               (submissionRounds?.current_round ?? 1) < (submissionRounds?.max_rounds ?? 3) && (
+                <button className="btn btn-primary" onClick={() => {
+                  setSelectedEvent(null);
+                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+                  if (uuid) navigate(`/submissions/${uuid}/review`);
+                }}>
+                  📝 Review &amp; Add Remarks
+                </button>
+              )}
+
+              {/* Start Re-inspection — assigned inspector only, when submission is under_review */}
+              {sel.status === 'completed' && isAssignedInspector && role === 'inspector' &&
+               (submissionStatus?.overall_status || submissionStatus?.status) === 'under_review' && (
+                <button className="btn btn-primary" onClick={() => {
+                  setSelectedEvent(null);
+                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+                  if (uuid) navigate(`/submissions/${uuid}/reinspect`);
+                }}>
+                  🔄 Start Re-inspection
+                </button>
+              )}
+
               {(canManage || isCreator) && sel.status !== 'completed' && (
                 <button className="btn btn-danger btn-sm" onClick={() => handleDelete(sel.id)}>
                   Delete
@@ -644,6 +595,8 @@ export default function CalendarPage() {
                 Close
               </button>
             </div>
+            {/* ── End Fixed Footer ── */}
+
           </div>
         </div>
       )}
