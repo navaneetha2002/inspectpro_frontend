@@ -509,25 +509,9 @@ export default function CalendarPage() {
               )}
 
               {sel.status === 'pending' && canActOnSchedule && (
-                <button className="btn btn-primary" onClick={async () => {
-                  try {
-                    await updateScheduleStatus(sel.id, 'in_progress');
-                    setSelectedEvent(null);
-                    await loadSchedules();
-                    if (sel.category_slug) {
-                      const p = new URLSearchParams();
-                      if (sel.location_slug) p.set('location', sel.location_slug);
-                      p.set('schedule_id', sel.id);
-                      navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                    }
-                  } catch { setError('Failed to start inspection.'); }
-                }}>
-                  Start Inspection
-                </button>
-                isAdmin || isScheduledTimeReached ? (
-                  <button
-                    className="btn btn-primary"
-                    onClick={async () => {
+                isAdmin || isScheduledTimeReached
+                  ? (
+                    <button className="btn btn-primary" onClick={async () => {
                       try {
                         await updateScheduleStatus(sel.id, 'in_progress');
                         setSelectedEvent(null);
@@ -538,23 +522,20 @@ export default function CalendarPage() {
                           p.set('schedule_id', sel.id);
                           navigate(`/form/${sel.category_slug}?${p.toString()}`);
                         }
-                      } catch {
-                        setError('Failed to start inspection.');
-                      }
-                    }}
-                  >
-                    Start Inspection
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                      } catch { setError('Failed to start inspection.'); }
+                    }}>
                       Start Inspection
                     </button>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-                      Available from {new Date(sel.scheduled_at).toLocaleString()}
-                    </span>
-                  </div>
-                )
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                      <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                        Start Inspection
+                      </button>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                        Available from {new Date(sel.scheduled_at).toLocaleString()}
+                      </span>
+                    </div>
+                  )
               )}
 
               {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && (
