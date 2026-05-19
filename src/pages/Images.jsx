@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { submitForm, updateScheduleStatus, updateSubmissionStatus } from '../api/api';
+import { submitForm, updateScheduleStatus, updateSubmissionStatus, getScheduleById } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function Images() {
@@ -13,8 +13,18 @@ export default function Images() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState(null);
+  const [schedule, setSchedule]       = useState(null);
 
+  const scheduleId  = new URLSearchParams(window.location.search).get('schedule_id');
   const isInspector = ['inspector', 'global_admin', 'local_admin'].includes(role);
+
+  useEffect(() => {
+    if (scheduleId) {
+      getScheduleById(scheduleId)
+        .then(r => setSchedule(r.data))
+        .catch(() => {});
+    }
+  }, [scheduleId]);
 
   function handleFiles(selected) {
     const arr = Array.from(selected);
@@ -70,6 +80,21 @@ export default function Images() {
       setError(err.response?.data?.error || 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  if (role === 'inspector' && schedule) {
+    const now = Date.now();
+    if (schedule.submission_deadline && now > new Date(schedule.submission_deadline).getTime()) {
+      return (
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Submission deadline has passed</p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+            The deadline was {new Date(schedule.submission_deadline).toLocaleString()}.
+            Contact your coordinator to extend the deadline.
+          </p>
+        </div>
+      );
     }
   }
 

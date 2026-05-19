@@ -37,7 +37,7 @@ const STATUS_LABEL = {
 
 const EMPTY_FORM = {
   title: '', assigned_to: '', attendee_id: '', category_id: '',
-  location_id: '', scheduled_at: '', notes: '',
+  location_id: '', scheduled_at: '', submission_deadline: '', notes: '',
 };
 
 export default function CalendarPage() {
@@ -65,6 +65,8 @@ export default function CalendarPage() {
   const [error,                setError]                = useState(null);
   const [submissionStatus,     setSubmissionStatus]     = useState(null);
   const [submissionRounds,     setSubmissionRounds]     = useState(null);
+  const [showExtendDeadline,   setShowExtendDeadline]   = useState(false);
+  const [newDeadline,          setNewDeadline]           = useState('');
 
   const loadSchedules = useCallback(async () => {
     try {
@@ -103,10 +105,16 @@ export default function CalendarPage() {
       setFilteredAttendees(Array.isArray(attendeesRes.data) ? attendeesRes.data : []);
       setFilteredInspectors(Array.isArray(inspectorsRes.data) ? inspectorsRes.data : []);
       setFilteredCategories((Array.isArray(categoriesRes.data) ? categoriesRes.data : []).filter(c => c.assigned));
-    } catch {
+    } catch (err) {
       setFilteredAttendees([]);
       setFilteredInspectors([]);
       setFilteredCategories([]);
+      const status = err?.response?.status;
+      if (status === 403) {
+        setError('You do not have permission to load inspector/attendee data for this location. Contact your administrator.');
+      } else {
+        setError('Failed to load location data. Please try again.');
+      }
     } finally {
       setLocationDataLoading(false);
     }
@@ -130,6 +138,7 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (showForm && isLocationLocked && userLocationId) {
+      setError(null);
       setForm(f => ({ ...f, location_id: String(userLocationId), attendee_id: '', assigned_to: '', category_id: '' }));
       loadLocationData(String(userLocationId));
     }
@@ -140,6 +149,8 @@ export default function CalendarPage() {
     setSelectedEvent(props);
     setSubmissionStatus(null);
     setSubmissionRounds(null);
+    setShowExtendDeadline(false);
+    setNewDeadline('');
 
     if (props.status === 'completed') {
       const uuid = props.submission_uuid
@@ -160,13 +171,14 @@ export default function CalendarPage() {
     setSubmitting(true);
     try {
       await createSchedule({
-        title:        form.title,
-        assigned_to:  Number(form.assigned_to),
-        attendee_id:  form.attendee_id  ? Number(form.attendee_id)  : null,
-        category_id:  form.category_id  ? Number(form.category_id)  : null,
-        location_id:  form.location_id  ? Number(form.location_id)  : null,
-        scheduled_at: form.scheduled_at,
-        notes:        form.notes || null,
+        title:               form.title,
+        assigned_to:         Number(form.assigned_to),
+        attendee_id:         form.attendee_id         ? Number(form.attendee_id)  : null,
+        category_id:         form.category_id         ? Number(form.category_id)  : null,
+        location_id:         form.location_id         ? Number(form.location_id)  : null,
+        scheduled_at:        form.scheduled_at,
+        submission_deadline: form.submission_deadline || null,
+        notes:               form.notes               || null,
       });
       setShowForm(false);
       setForm(EMPTY_FORM);
@@ -199,6 +211,19 @@ export default function CalendarPage() {
     }
   }
 
+  async function handleExtendDeadline() {
+    if (!newDeadline || !sel) return;
+    try {
+      await updateSchedule(sel.id, { submission_deadline: newDeadline });
+      setShowExtendDeadline(false);
+      setNewDeadline('');
+      await loadSchedules();
+      setSelectedEvent(null);
+    } catch {
+      setError('Failed to extend deadline.');
+    }
+  }
+
   const sel = selectedEvent;
   const isAssignedInspector = sel && String(sel.assigned_to) === String(userId);
   const isCreator           = sel && String(sel.created_by)  === String(userId);
@@ -206,6 +231,9 @@ export default function CalendarPage() {
   const isCoordinator       = role === 'coordinator';
   const canActOnSchedule    = !isCoordinator && (isAdmin || isAssignedInspector || isCreator);
   const isScheduledTimeReached = sel ? Date.now() >= new Date(sel.scheduled_at).getTime() : false;
+  const isDeadlinePassed       = sel?.submission_deadline
+    ? Date.now() > new Date(sel.submission_deadline).getTime()
+    : false;
 
   if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
 
@@ -323,11 +351,20 @@ export default function CalendarPage() {
                   </select>
                 </div>
               </div>
-              <div className="form-group">
-                <label>Scheduled At <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input type="datetime-local" required className="form-input"
-                  value={form.scheduled_at}
-                  onChange={e => setForm(f => ({ ...f, scheduled_at: e.target.value }))} />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Scheduled At <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <input type="datetime-local" required className="form-input"
+                    value={form.scheduled_at}
+                    onChange={e => setForm(f => ({ ...f, scheduled_at: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label>Submit By <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(deadline)</small></label>
+                  <input type="datetime-local" className="form-input"
+                    value={form.submission_deadline}
+                    min={form.scheduled_at || undefined}
+                    onChange={e => setForm(f => ({ ...f, submission_deadline: e.target.value }))} />
+                </div>
               </div>
               <div className="form-group">
                 <label>Notes <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(optional)</small></label>
@@ -425,6 +462,25 @@ export default function CalendarPage() {
                 <DetailRow label="Attendee"    value={sel.attendee_name    || '—'} />
                 <DetailRow label="Created By"  value={sel.created_by_name  || '—'} />
                 <DetailRow label="Scheduled"   value={new Date(sel.scheduled_at).toLocaleString()} />
+                {sel.submission_deadline && (
+                  <DetailRow
+                    label="Submit By"
+                    value={
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        {new Date(sel.submission_deadline).toLocaleString()}
+                        {isDeadlinePassed && sel.status !== 'completed' && (
+                          <span style={{
+                            fontSize: '0.7rem', fontWeight: 700, color: '#dc2626',
+                            background: '#fef2f2', border: '1px solid #fca5a5',
+                            borderRadius: 4, padding: '1px 6px',
+                          }}>
+                            Deadline passed
+                          </span>
+                        )}
+                      </span>
+                    }
+                  />
+                )}
                 {sel.submission_id && (
                   <DetailRow label="Submission ID" value={`#${sel.submission_id}`} />
                 )}
@@ -508,8 +564,42 @@ export default function CalendarPage() {
                 </button>
               )}
 
+              {isCoordinator && (sel.status === 'pending' || sel.status === 'in_progress') && sel.submission_deadline && (
+                showExtendDeadline ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--muted)' }}>New submission deadline</label>
+                    <input
+                      type="datetime-local"
+                      className="form-input"
+                      value={newDeadline}
+                      min={new Date().toISOString().slice(0, 16)}
+                      onChange={e => setNewDeadline(e.target.value)}
+                      style={{ fontSize: '0.875rem' }}
+                    />
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button className="btn btn-primary" style={{ flex: 1 }}
+                        disabled={!newDeadline}
+                        onClick={handleExtendDeadline}>
+                        Save
+                      </button>
+                      <button className="btn btn-secondary"
+                        onClick={() => { setShowExtendDeadline(false); setNewDeadline(''); }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="btn btn-secondary" onClick={() => {
+                    setNewDeadline(sel.submission_deadline.slice(0, 16));
+                    setShowExtendDeadline(true);
+                  }}>
+                    {isDeadlinePassed ? 'Extend Deadline' : 'Change Deadline'}
+                  </button>
+                )
+              )}
+
               {sel.status === 'pending' && canActOnSchedule && (
-                isAdmin || isScheduledTimeReached ? (
+                isAdmin || (isScheduledTimeReached && !isDeadlinePassed) ? (
                   <button
                     className="btn btn-primary"
                     onClick={async () => {
@@ -530,6 +620,15 @@ export default function CalendarPage() {
                   >
                     Start Inspection
                   </button>
+                ) : isDeadlinePassed ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                      Start Inspection
+                    </button>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
+                      Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
+                    </span>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
                     <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
@@ -543,15 +642,26 @@ export default function CalendarPage() {
               )}
 
               {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && (
-                <button className="btn btn-primary" onClick={() => {
-                  setSelectedEvent(null);
-                  const p = new URLSearchParams();
-                  if (sel.location_slug) p.set('location', sel.location_slug);
-                  p.set('schedule_id', sel.id);
-                  navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                }}>
-                  Open Form
-                </button>
+                isAdmin || !isDeadlinePassed ? (
+                  <button className="btn btn-primary" onClick={() => {
+                    setSelectedEvent(null);
+                    const p = new URLSearchParams();
+                    if (sel.location_slug) p.set('location', sel.location_slug);
+                    p.set('schedule_id', sel.id);
+                    navigate(`/form/${sel.category_slug}?${p.toString()}`);
+                  }}>
+                    Open Form
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                      Open Form
+                    </button>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
+                      Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
+                    </span>
+                  </div>
+                )
               )}
 
               {sel.status === 'in_progress' && canActOnSchedule && (
