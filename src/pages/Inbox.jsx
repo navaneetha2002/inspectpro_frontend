@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNotifications } from '../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -48,24 +49,45 @@ function AssignmentBadge({ notif }) {
   );
 }
 
+const COMPLETED_STATES = ['completed', 'submitted', 'approved', 'rejected', 'closed'];
+
+function isCompleted(n) {
+  if (n.status && COMPLETED_STATES.includes(n.status.toLowerCase())) return true;
+  const text = `${n.title || ''} ${n.message || ''} ${n.type || ''} ${n.notification_type || ''}`.toLowerCase();
+  return COMPLETED_STATES.some(s => text.includes(s));
+}
+
 export default function Inbox() {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const [showCompleted, setShowCompleted] = useState(false);
 
-  const unread = notifications.filter(n => !n.is_read);
-  const read   = notifications.filter(n =>  n.is_read);
+  const filtered     = showCompleted ? notifications : notifications.filter(n => !isCompleted(n));
+  const hiddenCount  = notifications.filter(isCompleted).length;
+  const unread       = filtered.filter(n => !n.is_read);
+  const read         = filtered.filter(n =>  n.is_read);
 
   return (
     <div>
       <div className="page-header">
         <h1>Inbox</h1>
-        {unreadCount > 0 && (
-          <button className="btn btn-secondary" onClick={markAllRead}>
-            Mark all as read
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className={`btn ${showCompleted ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setShowCompleted(v => !v)}
+          >
+            {showCompleted
+              ? 'Hide Completed Tasks'
+              : `Show Completed Tasks${hiddenCount > 0 ? ` (${hiddenCount})` : ''}`}
           </button>
-        )}
+          {unreadCount > 0 && (
+            <button className="btn btn-secondary" onClick={markAllRead}>
+              Mark all as read
+            </button>
+          )}
+        </div>
       </div>
 
-      {notifications.length === 0 ? (
+      {filtered.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: '4rem 2rem',
           color: 'var(--muted)', fontSize: '0.95rem',
