@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getFormStep, getMySubmissionForForm } from '../api/api';
+import { getFormStep, getMySubmissionForForm, getScheduleById } from '../api/api';
+import { useAuth } from '../context/AuthContext';
 
 function safeOptions(raw) {
   if (!raw) return [];
@@ -12,10 +13,12 @@ export default function Form() {
   const { slug }                = useParams();
   const [searchParams]          = useSearchParams();
   const navigate                = useNavigate();
+  const { role }                = useAuth();
   const [data, setData]         = useState(null);
   const [answers, setAnswers]   = useState({});
   const [existing, setExisting] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [schedule, setSchedule] = useState(null);
 
   const locationSlug = searchParams.get('location');
   const scheduleId   = searchParams.get('schedule_id');
@@ -43,6 +46,14 @@ export default function Form() {
     getFormStep(slug, 1).then(r => setData(r.data));
   }, [slug]);
 
+  useEffect(() => {
+    if (scheduleId) {
+      getScheduleById(scheduleId)
+        .then(r => setSchedule(r.data))
+        .catch(() => {});
+    }
+  }, [scheduleId]);
+
   function handleChange(qId, value) {
     setAnswers(prev => ({ ...prev, [String(qId)]: value }));
   }
@@ -65,6 +76,31 @@ export default function Form() {
   if (checking || !data) return <p>Loading...</p>;
 
   const isReadOnly = !!existing;
+
+  if (role === 'inspector' && schedule && !isReadOnly) {
+    const now = Date.now();
+    if (now < new Date(schedule.scheduled_at).getTime()) {
+      return (
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Inspection not yet available</p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+            This inspection opens on {new Date(schedule.scheduled_at).toLocaleString()}.
+          </p>
+        </div>
+      );
+    }
+    if (schedule.submission_deadline && now > new Date(schedule.submission_deadline).getTime()) {
+      return (
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Submission deadline has passed</p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+            The deadline was {new Date(schedule.submission_deadline).toLocaleString()}.
+            Contact your coordinator to extend the deadline.
+          </p>
+        </div>
+      );
+    }
+  }
 
   return (
     <div>

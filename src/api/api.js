@@ -101,6 +101,7 @@ export const createRole             = (name, description) => authApi.post('/auth
 
 // Schedules
 export const getSchedules             = ()                      => authApi.get('/schedules');
+export const getScheduleById         = (id)                     => authApi.get(`/schedules/${id}`);
 export const createSchedule           = (data)                   => authApi.post('/schedules', data);
 export const updateSchedule           = (id, data)               => authApi.put(`/schedules/${id}`, data);
 export const updateScheduleStatus     = (id, status, submissionUuid) => authApi.patch(`/schedules/${id}/status`, { status, ...(submissionUuid ? { submission_uuid: submissionUuid } : {}) });
