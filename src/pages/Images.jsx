@@ -27,13 +27,32 @@ export default function Images() {
   }, [scheduleId]);
 
   function handleFiles(selected) {
-    const arr = Array.from(selected);
-    setFiles(arr);
-    setPreviews(arr.map(f => URL.createObjectURL(f)));
+    const incoming = Array.from(selected);
+    setFiles(prev => {
+      const existingNames = new Set(prev.map(f => f.name));
+      const merged = [...prev, ...incoming.filter(f => !existingNames.has(f.name))];
+      return merged;
+    });
+    setPreviews(prev => [...prev, ...incoming.map(f => URL.createObjectURL(f))]);
+  }
+
+  function removeFile(index) {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    handleFiles(e.dataTransfer.files);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    if (files.length === 0) {
+      setError('Please upload at least one image before submitting.');
+      return;
+    }
 
     if (isInspector && !decision) {
       setError('Please approve or reject the inspection before submitting.');
@@ -102,10 +121,15 @@ export default function Images() {
     <div>
       <h1>Upload Images</h1>
 
-      <div className="upload-area" onClick={() => document.getElementById('fileInput').click()}>
+      <div
+        className="upload-area"
+        onClick={() => document.getElementById('fileInput').click()}
+        onDragOver={e => e.preventDefault()}
+        onDrop={handleDrop}
+      >
         <div className="upload-icon">📷</div>
         <p>Click or drag images here</p>
-        <p className="upload-hint">JPEG, PNG, GIF, WEBP — max 10MB each</p>
+        <p className="upload-hint">JPEG, PNG, GIF, WEBP — max 10MB each · select multiple at once</p>
         <input id="fileInput" type="file" className="file-input" multiple accept="image/*"
                onChange={e => handleFiles(e.target.files)} />
       </div>
@@ -113,9 +137,21 @@ export default function Images() {
       {previews.length > 0 && (
         <div className="preview-grid">
           {previews.map((src, i) => (
-            <div key={i} className="preview-item">
+            <div key={i} className="preview-item" style={{ position: 'relative' }}>
               <img src={src} alt={files[i].name} />
               <span>{files[i].name}</span>
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); removeFile(i); }}
+                style={{
+                  position: 'absolute', top: 4, right: 4,
+                  background: '#dc2626', color: '#fff',
+                  border: 'none', borderRadius: '50%',
+                  width: 22, height: 22, cursor: 'pointer',
+                  fontWeight: 700, fontSize: 14, lineHeight: '22px',
+                  padding: 0,
+                }}
+              >×</button>
             </div>
           ))}
         </div>
@@ -202,10 +238,10 @@ export default function Images() {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || (isInspector && !decision)}
+          disabled={submitting || files.length === 0 || (isInspector && !decision)}
           style={{
-            opacity: (submitting || (isInspector && !decision)) ? 0.5 : 1,
-            cursor: (submitting || (isInspector && !decision)) ? 'not-allowed' : 'pointer',
+            opacity: (submitting || files.length === 0 || (isInspector && !decision)) ? 0.5 : 1,
+            cursor: (submitting || files.length === 0 || (isInspector && !decision)) ? 'not-allowed' : 'pointer',
           }}
           className={`btn ${decision === 'rejected' ? 'btn-danger' : 'btn-success'}`}
         >

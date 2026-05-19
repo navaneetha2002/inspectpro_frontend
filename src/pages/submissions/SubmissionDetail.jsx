@@ -6,6 +6,46 @@ import { usePermissions } from '../../context/PermissionsContext';
 import { PERMISSIONS } from '../../config/permissions';
 import ConfirmModal from '../../components/ConfirmModal';
 
+function AuthenticatedImage({ id, alt, ...props }) {
+  const { token } = useAuth();
+  const [src, setSrc]     = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!id || !token) return;
+    const base = import.meta.env.VITE_API_BASE_URL;
+    let objectUrl;
+    let cancelled = false;
+
+    fetch(`${base}/form/image/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`Image load failed: ${r.status} ${r.statusText}`);
+        return r.blob();
+      })
+      .then(blob => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        console.error(`AuthenticatedImage [id=${id}]:`, err.message);
+        setError(err.message);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [id, token]);
+
+  if (error) return <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{error}</span>;
+  if (!src)  return <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Loading…</span>;
+  return <img src={src} alt={alt} {...props} />;
+}
+
 function StatusBadge({ status }) {
   const map = {
     pending:      { bg: '#fefce8', color: '#854d0e', border: '#fde047', label: '⏳ Pending'      },
@@ -169,7 +209,7 @@ export default function SubmissionDetail() {
   const navigate          = useNavigate();
 
   // ✅ Pull role so isInspector works
-  const { isGlobalAdmin, role } = useAuth();
+  const { isGlobalAdmin, role, userId } = useAuth();
   const { hasPermission }       = usePermissions();
 
   const canDelete   = isGlobalAdmin || hasPermission(PERMISSIONS.VIEW_SUBMISSIONS);
@@ -195,12 +235,6 @@ export default function SubmissionDetail() {
   // Safe derived values — rounds may still be null while loading
   const roundsList    = rounds?.rounds      ?? [];
   const currentRound  = rounds?.current_round ?? 1;
-  const maxRounds     = rounds?.max_rounds    ?? 3;
-
-  console.log('overallStatus:', overallStatus);
-  console.log('submission.overall_status:', submission.overall_status);
-  console.log('submission.status:', submission.status);
-  console.log('currentRound:', currentRound, 'maxRounds:', maxRounds);
 
   async function handleDelete() {
     setDeleting(true);
@@ -225,7 +259,7 @@ export default function SubmissionDetail() {
         </nav>
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
           <h1>{submission.category_name} Inspection</h1>
-          {canDelete && (
+          {canDelete && overallStatus !== 'closed' && (
             <button onClick={() => setConfirmOpen(true)} className="btn btn-danger" disabled={deleting}>
               {deleting ? 'Deleting...' : 'Delete Submission'}
             </button>
@@ -239,14 +273,14 @@ export default function SubmissionDetail() {
         <StatusBadge status={overallStatus} />
         {rounds && (
           <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            Round {currentRound} of {maxRounds}
+            Round {currentRound}
           </span>
         )}
       </div>
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: '0.75rem', margin: '1rem 0', flexWrap: 'wrap' }}>
-        {overallStatus === 'rejected' && currentRound < maxRounds && role !== 'inspector' && (
+        {overallStatus === 'rejected' && (
           <button
             className="btn btn-primary"
             onClick={() => navigate(`/submissions/${uuid}/review`)}
@@ -255,7 +289,7 @@ export default function SubmissionDetail() {
           </button>
         )}
 
-        {overallStatus === 'under_review' && isInspector && (
+        {overallStatus === 'under_review' && String(submission.assigned_to) === String(userId) && (
           <button
             className="btn btn-primary"
             onClick={() => navigate(`/submissions/${uuid}/reinspect`)}
@@ -269,19 +303,12 @@ export default function SubmissionDetail() {
       {submission.status !== 'pending' && submission.status !== 'submitted' && overallStatus !== 'under_review' && (
         <div style={{
           margin: '1rem 0', padding: '1rem 1.25rem', borderRadius: 10,
-          background: overallStatus === 'approved' ? '#f0fdf4'
-                    : overallStatus === 'closed'   ? '#f8fafc' : '#fef2f2',
-          border: `1px solid ${
-            overallStatus === 'approved' ? '#86efac'
-            : overallStatus === 'closed' ? '#cbd5e1' : '#fca5a5'
-          }`,
+          background: overallStatus === 'approved' ? '#f0fdf4' : '#fef2f2',
+          border: `1px solid ${overallStatus === 'approved' ? '#86efac' : '#fca5a5'}`,
         }}>
           <p style={{ margin: 0, fontWeight: 600,
-            color: overallStatus === 'approved' ? '#166534'
-                 : overallStatus === 'closed'   ? '#475569' : '#991b1b' }}>
-            {overallStatus === 'approved' ? '✓ Approved'
-           : overallStatus === 'closed'   ? '🔒 Closed — max re-inspections reached'
-           : '✗ Rejected'}
+            color: overallStatus === 'approved' ? '#166534' : '#991b1b' }}>
+            {overallStatus === 'approved' ? '✓ Approved' : '✗ Rejected'}
             {submission.reviewed_by_username && ` by ${submission.reviewed_by_username}`}
             {submission.reviewed_at && (
               <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: '#64748b', fontSize: '0.85rem' }}>
@@ -317,10 +344,7 @@ export default function SubmissionDetail() {
           <div className="image-gallery">
             {images.map(img => (
               <div key={img.id} className="gallery-item">
-                <img
-                  src={`https://inspectpro-backend.cfapps.eu10-004.hana.ondemand.com/api/form/image/${img.id}`}
-                  alt={img.original_name}
-                />
+                <AuthenticatedImage id={img.id} alt={img.original_name} />
                 <span>{img.original_name}</span>
               </div>
             ))}

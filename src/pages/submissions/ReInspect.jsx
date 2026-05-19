@@ -239,16 +239,6 @@ export default function ReInspect() {
             Inspector Decision
           </h3>
 
-          {rounds.current_round >= rounds.max_rounds && (
-            <div style={{
-              padding: '0.6rem 0.85rem', marginBottom: '0.75rem', borderRadius: 7,
-              background: '#fefce8', border: '1px solid #fde047', color: '#854d0e',
-              fontSize: '0.85rem',
-            }}>
-              ⚠️ This is the final re-inspection allowed. If rejected, the submission will be closed.
-            </div>
-          )}
-
           <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500 }}>
             Notes <span style={{ color: '#64748b', fontWeight: 400 }}>(optional)</span>
           </label>

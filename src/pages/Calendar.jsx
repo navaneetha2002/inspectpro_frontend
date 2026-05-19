@@ -52,6 +52,7 @@ export default function CalendarPage() {
   const isLocationLocked = role === 'coordinator' || role === 'local_admin';
 
   const [events,               setEvents]               = useState([]);
+  const [showCompleted,        setShowCompleted]        = useState(false);
   const [selectedEvent,        setSelectedEvent]        = useState(null);
   const [showForm,             setShowForm]             = useState(false);
   const [form,                 setForm]                 = useState(EMPTY_FORM);
@@ -67,6 +68,12 @@ export default function CalendarPage() {
   const [submissionRounds,     setSubmissionRounds]     = useState(null);
   const [showExtendDeadline,   setShowExtendDeadline]   = useState(false);
   const [newDeadline,          setNewDeadline]           = useState('');
+  const [reassigning,          setReassigning]          = useState(false);
+  const [reassignForm,         setReassignForm]         = useState({ assigned_to: '', attendee_id: '' });
+  const [reassignLoading,      setReassignLoading]      = useState(false);
+  const [reassignDataLoading,  setReassignDataLoading]  = useState(false);
+  const [reassignInspectors,   setReassignInspectors]   = useState([]);
+  const [reassignAttendees,    setReassignAttendees]    = useState([]);
 
   const loadSchedules = useCallback(async () => {
     try {
@@ -221,6 +228,48 @@ export default function CalendarPage() {
       setSelectedEvent(null);
     } catch {
       setError('Failed to extend deadline.');
+  async function openReassign(schedule) {
+    setReassigning(true);
+    setReassignForm({
+      assigned_to:  String(schedule.assigned_to  ?? ''),
+      attendee_id:  String(schedule.attendee_id  ?? ''),
+    });
+    if (!schedule.location_id) return;
+    setReassignDataLoading(true);
+    try {
+      const [attendeesRes, inspectorsRes] = await Promise.all([
+        getAttendeesByLocation(schedule.location_id),
+        getInspectorsByExcludingLocation(schedule.location_id),
+      ]);
+      setReassignInspectors(Array.isArray(inspectorsRes.data) ? inspectorsRes.data : []);
+      setReassignAttendees(Array.isArray(attendeesRes.data)   ? attendeesRes.data  : []);
+    } catch {
+      setReassignInspectors([]);
+      setReassignAttendees([]);
+    } finally {
+      setReassignDataLoading(false);
+    }
+  }
+
+  async function handleReassign() {
+    setReassignLoading(true);
+    try {
+      await updateSchedule(sel.id, {
+        title:        sel.title,
+        assigned_to:  Number(reassignForm.assigned_to),
+        attendee_id:  reassignForm.attendee_id ? Number(reassignForm.attendee_id) : null,
+        category_id:  sel.category_id  ?? null,
+        location_id:  sel.location_id  ?? null,
+        scheduled_at: sel.scheduled_at,
+        notes:        sel.notes ?? null,
+      });
+      setReassigning(false);
+      setSelectedEvent(null);
+      await loadSchedules();
+    } catch {
+      setError('Failed to reassign schedule.');
+    } finally {
+      setReassignLoading(false);
     }
   }
 
@@ -255,13 +304,20 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         {Object.entries(STATUS_LABEL).map(([key, label]) => (
           <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--muted)', fontWeight: 500 }}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLOR[key], display: 'inline-block', flexShrink: 0 }} />
             {label}
           </span>
         ))}
+        <button
+          className={`btn btn-sm ${showCompleted ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ marginLeft: 'auto' }}
+          onClick={() => setShowCompleted(v => !v)}
+        >
+          {showCompleted ? 'Hide Completed' : 'Show Completed'}
+        </button>
       </div>
 
       <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', padding: '1.25rem' }}>
@@ -269,7 +325,7 @@ export default function CalendarPage() {
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
-          events={events}
+          events={showCompleted ? events : events.filter(e => e.extendedProps?.status !== 'completed')}
           eventClick={handleEventClick}
           height="auto"
           eventDisplay="block"
@@ -391,7 +447,7 @@ export default function CalendarPage() {
       {sel && (
         <div
           className="modal-overlay"
-          onClick={() => setSelectedEvent(null)}
+          onClick={() => { setSelectedEvent(null); setReassigning(false); }}
           style={{
             position: 'fixed', inset: 0, zIndex: 1000,
             background: 'rgba(0,0,0,0.45)',
@@ -486,6 +542,67 @@ export default function CalendarPage() {
                 )}
                 {sel.notes && <DetailRow label="Notes" value={sel.notes} last />}
               </div>
+
+              {/* ── Reassign Panel ── */}
+              {reassigning && (
+                <div style={{
+                  background: 'var(--bg)', borderRadius: 8,
+                  border: '1px solid #bfdbfe', padding: '1rem',
+                  marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
+                    Reassign Inspector &amp; Attendee
+                  </p>
+                  {reassignDataLoading ? (
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>Loading users…</p>
+                  ) : (
+                    <>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Inspector <span style={{ color: 'var(--danger)' }}>*</span>
+                        </label>
+                        <select
+                          className="form-input"
+                          value={reassignForm.assigned_to}
+                          onChange={e => setReassignForm(f => ({ ...f, assigned_to: e.target.value }))}
+                        >
+                          <option value="">Select inspector…</option>
+                          {reassignInspectors.map(u => (
+                            <option key={u.id} value={u.id}>{u.username}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Attendee
+                        </label>
+                        <select
+                          className="form-input"
+                          value={reassignForm.attendee_id}
+                          onChange={e => setReassignForm(f => ({ ...f, attendee_id: e.target.value }))}
+                        >
+                          <option value="">None</option>
+                          {reassignAttendees.map(u => (
+                            <option key={u.id} value={u.id}>{u.username}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setReassigning(false)}>
+                          Cancel
+                        </button>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          disabled={!reassignForm.assigned_to || reassignLoading}
+                          onClick={handleReassign}
+                        >
+                          {reassignLoading ? 'Saving…' : 'Save'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Submission status block */}
               {sel.status === 'completed' && submissionStatus && (
@@ -603,6 +720,9 @@ export default function CalendarPage() {
                   <button
                     className="btn btn-primary"
                     onClick={async () => {
+                isAdmin || isScheduledTimeReached
+                  ? (
+                    <button className="btn btn-primary" onClick={async () => {
                       try {
                         await updateScheduleStatus(sel.id, 'in_progress');
                         setSelectedEvent(null);
@@ -632,13 +752,20 @@ export default function CalendarPage() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
                     <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                      } catch { setError('Failed to start inspection.'); }
+                    }}>
                       Start Inspection
                     </button>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-                      Available from {new Date(sel.scheduled_at).toLocaleString()}
-                    </span>
-                  </div>
-                )
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                      <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                        Start Inspection
+                      </button>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                        Available from {new Date(sel.scheduled_at).toLocaleString()}
+                      </span>
+                    </div>
+                  )
               )}
 
               {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && (
@@ -687,10 +814,9 @@ export default function CalendarPage() {
                 </button>
               )}
 
-              {/* Review & Add Remarks — attendee only, when submission is rejected and rounds remain */}
-              {sel.status === 'completed' && isAttendee && role !== 'inspector' &&
-               (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' &&
-               (submissionRounds?.current_round ?? 1) < (submissionRounds?.max_rounds ?? 3) && (
+              {/* Review & Add Remarks — attendee only, when submission is rejected */}
+              {sel.status === 'completed' && isAttendee &&
+               (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' && (
                 <button className="btn btn-primary" onClick={() => {
                   setSelectedEvent(null);
                   const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
@@ -712,13 +838,19 @@ export default function CalendarPage() {
                 </button>
               )}
 
+              {canManage && sel.status !== 'completed' && !reassigning && (
+                <button className="btn btn-secondary btn-sm" onClick={() => openReassign(sel)}>
+                  Reassign
+                </button>
+              )}
+
               {(canManage || isCreator) && sel.status !== 'completed' && (
                 <button className="btn btn-danger btn-sm" onClick={() => handleDelete(sel.id)}>
                   Delete
                 </button>
               )}
 
-              <button className="btn btn-secondary" onClick={() => setSelectedEvent(null)} style={{ marginLeft: 'auto' }}>
+              <button className="btn btn-secondary" onClick={() => { setSelectedEvent(null); setReassigning(false); }} style={{ marginLeft: 'auto' }}>
                 Close
               </button>
             </div>
