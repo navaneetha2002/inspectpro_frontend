@@ -509,21 +509,6 @@ export default function CalendarPage() {
               )}
 
               {sel.status === 'pending' && canActOnSchedule && (
-                <button className="btn btn-primary" onClick={async () => {
-                  try {
-                    await updateScheduleStatus(sel.id, 'in_progress');
-                    setSelectedEvent(null);
-                    await loadSchedules();
-                    if (sel.category_slug) {
-                      const p = new URLSearchParams();
-                      if (sel.location_slug) p.set('location', sel.location_slug);
-                      p.set('schedule_id', sel.id);
-                      navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                    }
-                  } catch { setError('Failed to start inspection.'); }
-                }}>
-                  Start Inspection
-                </button>
                 isAdmin || isScheduledTimeReached ? (
                   <button
                     className="btn btn-primary"
