@@ -126,7 +126,19 @@ export default function CalendarPage() {
       setLocationDataLoading(false);
     }
   }, []);
-
+useEffect(() => {
+  if (
+    submissionStatus?.status === 'approved' &&
+    sel?.status !== 'completed'
+  ) {
+    updateScheduleStatus(sel.id, 'completed')
+      .then(() => {
+        loadSchedules();
+        setSelectedEvent(prev => prev ? { ...prev, status: 'completed' } : prev);
+      })
+      .catch(() => setError('Failed to auto-complete schedule.'));
+  }
+}, [submissionStatus]);
   useEffect(() => {
     loadSchedules();
     if (canCreate || canManage) {
@@ -152,26 +164,38 @@ export default function CalendarPage() {
   }, [showForm, isLocationLocked, userLocationId, loadLocationData]);
 
   function handleEventClick({ event }) {
-    const props = event.extendedProps;
-    setSelectedEvent(props);
-    setSubmissionStatus(null);
-    setSubmissionRounds(null);
-    setShowExtendDeadline(false);
-    setNewDeadline('');
+  const props = event.extendedProps;
+  setSelectedEvent(props);
+  setSubmissionStatus(null);
+  setSubmissionRounds(null);
+  setShowExtendDeadline(false);
+  setNewDeadline('');
 
-    if (props.status === 'completed') {
-      const uuid = props.submission_uuid
-        || localStorage.getItem(`schedule_submission_${props.id}`);
-      if (uuid) {
-        getSubmission(uuid)
-          .then(r => setSubmissionStatus(r.data?.submission ?? null))
-          .catch(() => setSubmissionStatus(null));
-        getRounds(uuid)
-          .then(r => setSubmissionRounds(r.data ?? null))
-          .catch(() => setSubmissionRounds(null));
-      }
+  if (props.status === 'completed' || props.status === 'in_progress') {
+    const uuid = props.submission_uuid
+      || localStorage.getItem(`schedule_submission_${props.id}`);
+    if (uuid) {
+      getSubmission(uuid)
+  .then(async r => {
+    const sub = r.data?.submission ?? null;
+    setSubmissionStatus(sub);
+
+    // ✅ Auto-complete if submission is approved and schedule isn't completed yet
+    if (sub?.status === 'approved' && props.status !== 'completed') {
+      await updateScheduleStatus(props.id, 'completed');
+      await loadSchedules();
+      // Update the selectedEvent so the modal reflects the new status
+      setSelectedEvent(prev => prev ? { ...prev, status: 'completed' } : prev);
+    }
+  })
+  .catch(() => setSubmissionStatus(null));
+
+      getRounds(uuid)
+        .then(r => setSubmissionRounds(r.data ?? null))
+        .catch(() => setSubmissionRounds(null));
     }
   }
+}
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -228,6 +252,9 @@ export default function CalendarPage() {
       setSelectedEvent(null);
     } catch {
       setError('Failed to extend deadline.');
+    }
+  }
+
   async function openReassign(schedule) {
     setReassigning(true);
     setReassignForm({
@@ -665,7 +692,7 @@ export default function CalendarPage() {
                 <button className="btn btn-secondary" onClick={() => {
                   setSelectedEvent(null);
                   const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                  if (uuid) navigate(`/submissions/${uuid}`);
+                  if (uuid) navigate(`/submissions/${uuid}`, { state: { scheduleTitle: sel.title } });
                 }}>
                   View Response
                 </button>
@@ -675,7 +702,7 @@ export default function CalendarPage() {
                 <button className="btn btn-secondary" onClick={() => {
                   setSelectedEvent(null);
                   const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                  if (uuid) navigate(`/submissions/${uuid}`);
+                  if (uuid) navigate(`/submissions/${uuid}`, { state: { scheduleTitle: sel.title } });
                 }}>
                   View Response
                 </button>
@@ -717,58 +744,45 @@ export default function CalendarPage() {
 
               {sel.status === 'pending' && canActOnSchedule && (
                 isAdmin || (isScheduledTimeReached && !isDeadlinePassed) ? (
-                  <button
-                    className="btn btn-primary"
-                    onClick={async () => {
-                isAdmin || isScheduledTimeReached
-                  ? (
-                    <button className="btn btn-primary" onClick={async () => {
-                      try {
-                        await updateScheduleStatus(sel.id, 'in_progress');
-                        setSelectedEvent(null);
-                        await loadSchedules();
-                        if (sel.category_slug) {
-                          const p = new URLSearchParams();
-                          if (sel.location_slug) p.set('location', sel.location_slug);
-                          p.set('schedule_id', sel.id);
-                          navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                        }
-                      } catch {
-                        setError('Failed to start inspection.');
-                      }
-                    }}
-                  >
+                <button className="btn btn-primary" onClick={async () => {
+                  try {
+                    await updateScheduleStatus(sel.id, 'in_progress');
+                    setSelectedEvent(null);
+                    await loadSchedules();
+                    if (sel.category_slug) {
+                      const p = new URLSearchParams();
+                      if (sel.location_slug) p.set('location', sel.location_slug);
+                      p.set('schedule_id', sel.id);
+                      navigate(`/form/${sel.category_slug}?${p.toString()}`);
+                    }
+                  } catch {
+                    setError('Failed to start inspection.');
+                  }
+                }}>
+                  Start Inspection
+                </button>
+              ) : isDeadlinePassed ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                  <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
                     Start Inspection
                   </button>
-                ) : isDeadlinePassed ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                      Start Inspection
-                    </button>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
-                      Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
-                    </span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                      } catch { setError('Failed to start inspection.'); }
-                    }}>
-                      Start Inspection
-                    </button>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                      <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                        Start Inspection
-                      </button>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-                        Available from {new Date(sel.scheduled_at).toLocaleString()}
-                      </span>
-                    </div>
-                  )
-              )}
+                  <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
+                    Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
+                  </span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                  <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                    Start Inspection
+                  </button>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                    Available from {new Date(sel.scheduled_at).toLocaleString()}
+                  </span>
+                </div>
+              )
+            )}
 
-              {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && (
+              {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && !submissionStatus && (
                 isAdmin || !isDeadlinePassed ? (
                   <button className="btn btn-primary" onClick={() => {
                     setSelectedEvent(null);
@@ -791,13 +805,13 @@ export default function CalendarPage() {
                 )
               )}
 
-              {sel.status === 'in_progress' && canActOnSchedule && (
+              {sel.status === 'in_progress' && isAdmin && (
                 <button className="btn btn-success" onClick={() => handleStatus(sel.id, 'completed')}>
                   Mark Complete
                 </button>
               )}
 
-              {sel.status === 'completed' && canActOnSchedule && (
+              {(sel.status === 'completed' || (sel.status === 'in_progress' && submissionStatus)) && canActOnSchedule && (
                 <button className="btn btn-secondary" onClick={() => {
                   setSelectedEvent(null);
                   const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
@@ -815,7 +829,7 @@ export default function CalendarPage() {
               )}
 
               {/* Review & Add Remarks — attendee only, when submission is rejected */}
-              {sel.status === 'completed' && isAttendee &&
+              {(sel.status === 'completed' || sel.status === 'in_progress') && isAttendee &&
                (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' && (
                 <button className="btn btn-primary" onClick={() => {
                   setSelectedEvent(null);
@@ -826,8 +840,9 @@ export default function CalendarPage() {
                 </button>
               )}
 
-              {/* Start Re-inspection — assigned inspector only, when submission is under_review */}
-              {sel.status === 'completed' && isAssignedInspector && role === 'inspector' &&
+              {/* Start Re-inspection — assigned inspector or admin, when submission is under_review */}
+              {(sel.status === 'completed' || sel.status === 'in_progress') &&
+               (isAdmin || (isAssignedInspector && role === 'inspector')) &&
                (submissionStatus?.overall_status || submissionStatus?.status) === 'under_review' && (
                 <button className="btn btn-primary" onClick={() => {
                   setSelectedEvent(null);
