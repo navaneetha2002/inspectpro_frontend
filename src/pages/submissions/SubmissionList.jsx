@@ -47,7 +47,7 @@ export default function SubmissionList() {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Date</th><th>Location</th><th>Category</th><th>Images</th>
+            <th>Date</th><th>Location</th><th>Category</th><th>Title</th><th>Images</th>
             {canSeeAll && <th>Submitted By</th>}
             <th>Actions</th>
           </tr>
@@ -58,6 +58,7 @@ export default function SubmissionList() {
               <td data-label="Date">{new Date(s.submitted_at).toLocaleString()}</td>
               <td data-label="Location">{s.location_name || '—'}</td>
               <td data-label="Category">{s.category_name}</td>
+              <td data-label="Title">{s.title || '—'}</td>
               <td data-label="Images">{s.image_count}</td>
               {canSeeAll && <td data-label="Submitted By">{s.submitted_by || '—'}</td>}
               <td data-label="Actions" className="action-cell">

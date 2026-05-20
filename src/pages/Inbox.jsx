@@ -49,22 +49,44 @@ function AssignmentBadge({ notif }) {
   );
 }
 
-const COMPLETED_STATES = ['completed', 'submitted', 'approved', 'rejected', 'closed'];
+// Extract submission UUID from action_url like "/submissions/91886407-788f-4abf-93b9-245975e3f159"
+function getSubmissionId(n) {
+  if (!n.action_url) return null;
+  const match = n.action_url.match(/\/submissions\/([\w-]+)/);
+  return match ? match[1] : null;
+}
 
-function isCompleted(n) {
-  if (n.status && COMPLETED_STATES.includes(n.status.toLowerCase())) return true;
-  const text = `${n.title || ''} ${n.message || ''} ${n.type || ''} ${n.notification_type || ''}`.toLowerCase();
-  return COMPLETED_STATES.some(s => text.includes(s));
+// Build a Set of submission UUIDs where any notification has "approved" in the title
+function getApprovedSubmissionIds(notifications) {
+  const approvedIds = new Set();
+  notifications.forEach(n => {
+    const title = (n.title || '').toLowerCase();
+    const submissionId = getSubmissionId(n);
+    if (submissionId && title.includes('approved')) {
+      approvedIds.add(submissionId);
+    }
+  });
+  return approvedIds;
 }
 
 export default function Inbox() {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [showCompleted, setShowCompleted] = useState(false);
 
-  const filtered     = showCompleted ? notifications : notifications.filter(n => !isCompleted(n));
-  const hiddenCount  = notifications.filter(isCompleted).length;
-  const unread       = filtered.filter(n => !n.is_read);
-  const read         = filtered.filter(n =>  n.is_read);
+  // Build approved submission IDs once from all notifications
+  const approvedSubmissionIds = getApprovedSubmissionIds(notifications);
+
+  // A notification is "completed" if its submission UUID is in the approved set
+  function isCompleted(n) {
+    const submissionId = getSubmissionId(n);
+    if (submissionId && approvedSubmissionIds.has(submissionId)) return true;
+    return false;
+  }
+
+  const filtered    = showCompleted ? notifications : notifications.filter(n => !isCompleted(n));
+  const hiddenCount = notifications.filter(isCompleted).length;
+  const unread      = filtered.filter(n => !n.is_read);
+  const read        = filtered.filter(n =>  n.is_read);
 
   return (
     <div>
@@ -183,7 +205,6 @@ function NotifCard({ n, onRead }) {
           {timeAgo(n.created_at)}
         </span>
       </div>
-
     </div>
   );
 }
