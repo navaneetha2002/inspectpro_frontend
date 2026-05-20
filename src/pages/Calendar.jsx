@@ -847,7 +847,7 @@ useEffect(() => {
                 <button className="btn btn-primary" onClick={() => {
                   setSelectedEvent(null);
                   const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                  if (uuid) navigate(`/submissions/${uuid}/reinspect`);
+                  if (uuid) navigate(`/submissions/${uuid}/reinspect`, { state: { scheduleId: sel.id } });
                 }}>
                   🔄 Start Re-inspection
                 </button>

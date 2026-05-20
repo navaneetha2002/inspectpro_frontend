@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getSubmission, getRounds, submitRound, submitRoundDecision } from '../../api/api';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { getSubmission, getRounds, submitRound, submitRoundDecision, updateScheduleStatus } from '../../api/api';
 
 function safeOptions(raw) {
   if (!raw) return [];
@@ -11,6 +11,7 @@ function safeOptions(raw) {
 export default function ReInspect() {
   const { uuid }   = useParams();
   const navigate   = useNavigate();
+  const location   = useLocation();
   const [data, setData]       = useState(null);
   const [rounds, setRounds]   = useState(null);
   const [answers, setAnswers] = useState({});
@@ -65,13 +66,31 @@ export default function ReInspect() {
   }
 
   function handleFiles(selected) {
-    const arr = Array.from(selected);
-    setFiles(arr);
-    setPreviews(arr.map(f => URL.createObjectURL(f)));
+    const incoming = Array.from(selected);
+    setFiles(prev => {
+      const existingNames = new Set(prev.map(f => f.name));
+      return [...prev, ...incoming.filter(f => !existingNames.has(f.name))];
+    });
+    setPreviews(prev => [...prev, ...incoming.map(f => URL.createObjectURL(f))]);
+  }
+
+  function removeFile(index) {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    handleFiles(e.dataTransfer.files);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    if (files.length === 0) {
+      setError('Please upload at least one image before submitting.');
+      return;
+    }
 
     if (!decision) {
       setError('Please approve or reject before submitting.');
@@ -82,14 +101,19 @@ export default function ReInspect() {
     setError(null);
 
     try {
-      // 1. Submit the new round answers + images
       const fd = new FormData();
       fd.append('answers', JSON.stringify(answers));
       files.forEach(f => fd.append('images', f));
       const { data: roundData } = await submitRound(uuid, fd);
 
-      // 2. Immediately record the decision
       await submitRoundDecision(uuid, roundData.round_id, decision, reviewNotes);
+
+      if (decision === 'approved') {
+        const scheduleId = location.state?.scheduleId ?? submission.schedule_id;
+        if (scheduleId) {
+          await updateScheduleStatus(scheduleId, 'completed').catch(() => {});
+        }
+      }
 
       navigate(`/submissions/${uuid}`);
     } catch (err) {
@@ -211,19 +235,35 @@ export default function ReInspect() {
 
         {/* Image upload */}
         <div style={{ marginTop: '1.5rem' }}>
-          <h3>Upload Images <span style={{ fontWeight: 400, fontSize: '0.85rem', color: '#64748b' }}>(optional)</span></h3>
-          <div className="upload-area" onClick={() => document.getElementById('reinspectFiles').click()}>
+          <h3>Upload Images <span style={{ color: 'var(--danger)' }}>*</span></h3>
+          <div className="upload-area"
+            onClick={() => document.getElementById('reinspectFiles').click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={handleDrop}
+          >
             <div className="upload-icon">📷</div>
-            <p>Click to upload images</p>
+            <p>Click or drag images here</p>
+            <p className="upload-hint">JPEG, PNG, GIF, WEBP — max 10MB each · select multiple at once</p>
             <input id="reinspectFiles" type="file" className="file-input"
               multiple accept="image/*" onChange={e => handleFiles(e.target.files)} />
           </div>
           {previews.length > 0 && (
             <div className="preview-grid" style={{ marginTop: '1rem' }}>
               {previews.map((src, i) => (
-                <div key={i} className="preview-item">
+                <div key={i} className="preview-item" style={{ position: 'relative' }}>
                   <img src={src} alt={files[i].name} />
                   <span>{files[i].name}</span>
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); removeFile(i); }}
+                    style={{
+                      position: 'absolute', top: 4, right: 4,
+                      background: '#dc2626', color: '#fff',
+                      border: 'none', borderRadius: '50%',
+                      width: 22, height: 22, cursor: 'pointer',
+                      fontWeight: 700, fontSize: 14, lineHeight: '22px', padding: 0,
+                    }}
+                  >×</button>
                 </div>
               ))}
             </div>
@@ -293,8 +333,8 @@ export default function ReInspect() {
         <div className="form-actions" style={{ marginTop: '1.5rem' }}>
           <button type="submit"
             className={`btn ${decision === 'rejected' ? 'btn-danger' : 'btn-success'}`}
-            disabled={submitting || !decision}
-            style={{ opacity: !decision ? 0.5 : 1, cursor: !decision ? 'not-allowed' : 'pointer' }}>
+            disabled={submitting || files.length === 0 || !decision}
+            style={{ opacity: (submitting || files.length === 0 || !decision) ? 0.5 : 1, cursor: (submitting || files.length === 0 || !decision) ? 'not-allowed' : 'pointer' }}>
             {submitting ? 'Submitting…'
               : decision === 'approved' ? '✓ Submit Approved Re-inspection'
               : decision === 'rejected' ? '✗ Submit Rejected Re-inspection'

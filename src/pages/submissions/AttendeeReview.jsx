@@ -79,9 +79,22 @@ export default function AttendeeReview() {
   console.log('[AttendeeReview] labelMap:', labelMap);
 
   function handleFiles(selected) {
-    const arr = Array.from(selected);
-    setFiles(arr);
-    setPreviews(arr.map(f => URL.createObjectURL(f)));
+    const incoming = Array.from(selected);
+    setFiles(prev => {
+      const existingNames = new Set(prev.map(f => f.name));
+      return [...prev, ...incoming.filter(f => !existingNames.has(f.name))];
+    });
+    setPreviews(prev => [...prev, ...incoming.map(f => URL.createObjectURL(f))]);
+  }
+
+  function removeFile(index) {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    handleFiles(e.dataTransfer.files);
   }
 
   async function handleSubmit(e) {
@@ -91,6 +104,11 @@ export default function AttendeeReview() {
     const remarksList = Object.entries(remarks)
       .filter(([, remark]) => remark.trim())
       .map(([question_id, remark]) => ({ question_id: Number(question_id), remark }));
+
+    if (files.length === 0) {
+      setError('Please upload at least one image before submitting your review.');
+      return;
+    }
 
     if (!remarksList.length) {
       setError('Please add at least one remark before submitting your review.');
@@ -188,11 +206,15 @@ export default function AttendeeReview() {
 
         {/* Image upload */}
         <div className="detail-section">
-          <h2>Upload Evidence Images <span style={{ fontSize: '0.8rem', fontWeight: 400, color: '#64748b' }}>(optional)</span></h2>
-          <div className="upload-area" onClick={() => document.getElementById('attendeeFileInput').click()}>
+          <h2>Upload Evidence Images <span style={{ color: 'var(--danger)' }}>*</span></h2>
+          <div className="upload-area"
+            onClick={() => document.getElementById('attendeeFileInput').click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={handleDrop}
+          >
             <div className="upload-icon">📷</div>
-            <p>Click to upload supporting images</p>
-            <p className="upload-hint">JPEG, PNG, GIF, WEBP — max 10MB each</p>
+            <p>Click or drag images here</p>
+            <p className="upload-hint">JPEG, PNG, GIF, WEBP — max 10MB each · select multiple at once</p>
             <input
               id="attendeeFileInput" type="file" className="file-input"
               multiple accept="image/*"
@@ -202,9 +224,20 @@ export default function AttendeeReview() {
           {previews.length > 0 && (
             <div className="preview-grid" style={{ marginTop: '1rem' }}>
               {previews.map((src, i) => (
-                <div key={i} className="preview-item">
+                <div key={i} className="preview-item" style={{ position: 'relative' }}>
                   <img src={src} alt={files[i].name} />
                   <span>{files[i].name}</span>
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); removeFile(i); }}
+                    style={{
+                      position: 'absolute', top: 4, right: 4,
+                      background: '#dc2626', color: '#fff',
+                      border: 'none', borderRadius: '50%',
+                      width: 22, height: 22, cursor: 'pointer',
+                      fontWeight: 700, fontSize: 14, lineHeight: '22px', padding: 0,
+                    }}
+                  >×</button>
                 </div>
               ))}
             </div>
@@ -212,7 +245,9 @@ export default function AttendeeReview() {
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary" disabled={submitting}>
+          <button type="submit" className="btn btn-primary"
+            disabled={submitting || files.length === 0}
+            style={{ opacity: (submitting || files.length === 0) ? 0.5 : 1, cursor: (submitting || files.length === 0) ? 'not-allowed' : 'pointer' }}>
             {submitting ? 'Submitting Review…' : 'Submit Review for Re-inspection'}
           </button>
           <button
