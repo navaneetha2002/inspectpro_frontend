@@ -14,6 +14,7 @@ export default function Images() {
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState(null);
   const [schedule, setSchedule]       = useState(null);
+  const [reviewDeadline, setReviewDeadline] = useState('');
 
   const scheduleId  = new URLSearchParams(window.location.search).get('schedule_id');
   const isInspector = ['inspector', 'global_admin', 'local_admin'].includes(role);
@@ -59,6 +60,11 @@ export default function Images() {
       return;
     }
 
+    if (isInspector && decision === 'rejected' && !reviewDeadline) {
+      setError('Please set a deadline for the attendee to submit their review.');
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -77,7 +83,12 @@ export default function Images() {
       const { data } = await submitForm(slug, fd);
 
       if (isInspector && decision) {
-        await updateSubmissionStatus(data.submissionUuid, decision, reviewNotes);
+        await updateSubmissionStatus(
+          data.submissionUuid,
+          decision,
+          reviewNotes,
+          decision === 'rejected' ? reviewDeadline : null,
+        );
       }
 
       if (scheduleId) {
@@ -216,11 +227,30 @@ export default function Images() {
               {decision === 'approved' ? '✓ Marked as Approved' : '✗ Marked as Rejected'}
               {' '}<span
                 style={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 400 }}
-                onClick={() => setDecision(null)}
+                onClick={() => { setDecision(null); setReviewDeadline(''); }}
               >
                 Change
               </span>
             </p>
+          )}
+
+          {decision === 'rejected' && (
+            <div style={{ marginTop: '1rem', padding: '1rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8 }}>
+              <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.875rem', color: '#9a3412' }}>
+                Attendee Review Deadline <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <p style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', color: '#c2410c' }}>
+                Set a deadline by which the attendee must submit their review remarks.
+              </p>
+              <input
+                type="datetime-local"
+                className="form-input"
+                value={reviewDeadline}
+                min={new Date().toISOString().slice(0, 16)}
+                onChange={e => setReviewDeadline(e.target.value)}
+                required
+              />
+            </div>
           )}
         </div>
       )}

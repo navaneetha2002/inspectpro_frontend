@@ -19,6 +19,7 @@ import {
   getSubmission,
   getRounds,
   getLocations,
+  notifyReviewDeadlineMissed,
 } from '../api/api';
 
 const STATUS_COLOR = {
@@ -228,6 +229,9 @@ export default function CalendarPage() {
       setSelectedEvent(null);
     } catch {
       setError('Failed to extend deadline.');
+    }
+  }
+
   async function openReassign(schedule) {
     setReassigning(true);
     setReassignForm({
@@ -283,6 +287,24 @@ export default function CalendarPage() {
   const isDeadlinePassed       = sel?.submission_deadline
     ? Date.now() > new Date(sel.submission_deadline).getTime()
     : false;
+
+  // Derive attendee review deadline from the most-recent rejected round
+  const rejectedRound = submissionRounds?.rounds
+    ? [...submissionRounds.rounds]
+        .sort((a, b) => b.round_number - a.round_number)
+        .find(r => r.status === 'rejected')
+    : null;
+  const reviewDeadline       = rejectedRound?.review_deadline ?? null;
+  const isReviewDeadlinePassed = reviewDeadline
+    ? Date.now() > new Date(reviewDeadline).getTime()
+    : false;
+
+  // Fire-and-forget: notify admins/coordinator/inspector if attendee missed their review deadline
+  if (isReviewDeadlinePassed && submissionStatus?.overall_status === 'rejected') {
+    const uuid = sel?.submission_uuid
+      || (sel ? localStorage.getItem(`schedule_submission_${sel.id}`) : null);
+    if (uuid) notifyReviewDeadlineMissed(uuid).catch(() => {});
+  }
 
   if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
 
@@ -720,9 +742,6 @@ export default function CalendarPage() {
                   <button
                     className="btn btn-primary"
                     onClick={async () => {
-                isAdmin || isScheduledTimeReached
-                  ? (
-                    <button className="btn btn-primary" onClick={async () => {
                       try {
                         await updateScheduleStatus(sel.id, 'in_progress');
                         setSelectedEvent(null);
@@ -752,20 +771,13 @@ export default function CalendarPage() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
                     <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                      } catch { setError('Failed to start inspection.'); }
-                    }}>
                       Start Inspection
                     </button>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                      <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                        Start Inspection
-                      </button>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-                        Available from {new Date(sel.scheduled_at).toLocaleString()}
-                      </span>
-                    </div>
-                  )
+                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                      Available from {new Date(sel.scheduled_at).toLocaleString()}
+                    </span>
+                  </div>
+                )
               )}
 
               {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && (
@@ -817,13 +829,29 @@ export default function CalendarPage() {
               {/* Review & Add Remarks — attendee only, when submission is rejected */}
               {sel.status === 'completed' && isAttendee &&
                (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' && (
-                <button className="btn btn-primary" onClick={() => {
-                  setSelectedEvent(null);
-                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                  if (uuid) navigate(`/submissions/${uuid}/review`);
-                }}>
-                  📝 Review &amp; Add Remarks
-                </button>
+                isReviewDeadlinePassed ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                      📝 Review &amp; Add Remarks
+                    </button>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
+                      Review deadline passed ({new Date(reviewDeadline).toLocaleString()})
+                    </span>
+                  </div>
+                ) : (
+                  <button className="btn btn-primary" onClick={() => {
+                    setSelectedEvent(null);
+                    const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+                    if (uuid) navigate(`/submissions/${uuid}/review`);
+                  }}>
+                    📝 Review &amp; Add Remarks
+                    {reviewDeadline && (
+                      <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 400, opacity: 0.85 }}>
+                        Due by {new Date(reviewDeadline).toLocaleString()}
+                      </span>
+                    )}
+                  </button>
+                )
               )}
 
               {/* Start Re-inspection — assigned inspector only, when submission is under_review */}
@@ -844,7 +872,7 @@ export default function CalendarPage() {
                 </button>
               )}
 
-              {(canManage || isCreator) && sel.status !== 'completed' && (
+              {(isAdmin || ((canManage || isCreator) && sel.status !== 'completed')) && (
                 <button className="btn btn-danger btn-sm" onClick={() => handleDelete(sel.id)}>
                   Delete
                 </button>
