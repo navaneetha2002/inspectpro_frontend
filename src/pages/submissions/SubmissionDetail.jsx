@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getSubmission, deleteSubmission, getRounds } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -16,15 +16,22 @@ function AuthenticatedImage({ id, alt, ...props }) {
     const base = import.meta.env.VITE_API_BASE_URL;
     let objectUrl;
     let cancelled = false;
+    console.log('Fetching image:', `${base}/submissions/image/${id}`);
 
-    fetch(`${base}/form/image/${id}`, {
+    fetch(`${base}/submissions/image/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => {
-        if (!r.ok) throw new Error(`Image load failed: ${r.status} ${r.statusText}`);
-        return r.blob();
-      })
+      .then(async r => {
+  if (!r.ok) {
+    const text = await r.text();
+    console.error('API error response:', text);  // 👈 shows the actual error
+    throw new Error(`Image load failed: ${r.status} ${r.statusText}`);
+  }
+  return r.blob();
+})
       .then(blob => {
+        console.log('Blob type:', blob.type);
+        console.log('Blob size:', blob.size);
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
         setSrc(objectUrl);
@@ -188,14 +195,44 @@ function RoundTimeline({ rounds, labelMap }) {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: '#64748b' }}>
-                {r.inspector_images?.length > 0 && (
-                  <span>📷 {r.inspector_images.length} inspector image{r.inspector_images.length !== 1 ? 's' : ''}</span>
-                )}
-                {r.attendee_images?.length > 0 && (
-                  <span>🖼 {r.attendee_images.length} attendee image{r.attendee_images.length !== 1 ? 's' : ''}</span>
-                )}
-              </div>
+             {/* With this: */}
+{r.inspector_images?.length > 0 && (
+  <div style={{ marginBottom: '1rem' }}>
+    <h4 style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase' }}>
+      Inspector Images ({r.inspector_images.length})
+    </h4>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+      {r.inspector_images.map(img => (
+        <div key={img.id} style={{ flex: '0 0 auto' }}>
+          <AuthenticatedImage
+            id={img.id}
+            alt={img.original_name || `Inspector image ${img.id}`}
+            style={{ width: '160px', height: '120px', objectFit: 'cover', borderRadius: 6 }}
+          />
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{r.attendee_images?.length > 0 && (
+  <div>
+    <h4 style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#7e22ce', textTransform: 'uppercase' }}>
+      Attendee Images ({r.attendee_images.length})
+    </h4>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+      {r.attendee_images.map(img => (
+        <div key={img.id} style={{ flex: '0 0 auto' }}>
+          <AuthenticatedImage
+            id={img.id}
+            alt={img.original_name || `Attendee image ${img.id}`}
+            style={{ width: '160px', height: '120px', objectFit: 'cover', borderRadius: 6 }}
+          />
+        </div>
+      ))}
+    </div>
+  </div>
+)}
             </div>
           )}
         </div>
@@ -207,17 +244,17 @@ function RoundTimeline({ rounds, labelMap }) {
 export default function SubmissionDetail() {
   const { uuid }          = useParams();
   const navigate          = useNavigate();
+  const location          = useLocation();
+  const scheduleTitle     = location.state?.scheduleTitle ?? null;
 
-  // ✅ Pull role so isInspector works
   const { isGlobalAdmin, role, userId } = useAuth();
   const { hasPermission }       = usePermissions();
 
   const canDelete   = isGlobalAdmin || hasPermission(PERMISSIONS.VIEW_SUBMISSIONS);
-  // ✅ Declare isInspector
   const isInspector = ['inspector', 'global_admin', 'local_admin'].includes(role);
 
   const [data,        setData]        = useState(null);
-  const [rounds,      setRounds]      = useState(null);   // ✅ declare rounds state
+  const [rounds,      setRounds]      = useState(null);
   const [deleting,    setDeleting]    = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -232,7 +269,6 @@ export default function SubmissionDetail() {
 
   const { submission, images, labelMap } = data;
   const overallStatus = submission.overall_status || submission.status || 'pending';
-  // Safe derived values — rounds may still be null while loading
   const roundsList    = rounds?.rounds      ?? [];
   const currentRound  = rounds?.current_round ?? 1;
 
@@ -258,8 +294,15 @@ export default function SubmissionDetail() {
           <span className="breadcrumb-current">{submission.category_name} Inspection</span>
         </nav>
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
-          <h1>{submission.category_name} Inspection</h1>
-          {canDelete && overallStatus !== 'closed' && (
+          <div>
+            <h1>{submission.category_name} Inspection</h1>
+            {scheduleTitle && (
+              <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--muted)', fontWeight: 500 }}>
+                {scheduleTitle}
+              </p>
+            )}
+          </div>
+          {canDelete && overallStatus !== 'closed' && overallStatus !== 'approved' && (
             <button onClick={() => setConfirmOpen(true)} className="btn btn-danger" disabled={deleting}>
               {deleting ? 'Deleting...' : 'Delete Submission'}
             </button>
@@ -280,7 +323,7 @@ export default function SubmissionDetail() {
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: '0.75rem', margin: '1rem 0', flexWrap: 'wrap' }}>
-        {overallStatus === 'rejected' && (
+        {overallStatus === 'rejected' && String(submission.attendee_id) === String(userId) && (
           <button
             className="btn btn-primary"
             onClick={() => navigate(`/submissions/${uuid}/review`)}
@@ -344,7 +387,11 @@ export default function SubmissionDetail() {
           <div className="image-gallery">
             {images.map(img => (
               <div key={img.id} className="gallery-item">
-                <AuthenticatedImage id={img.id} alt={img.original_name} />
+                <AuthenticatedImage
+                  id={img.id}
+                  alt={img.original_name}
+                  style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: 8 }}
+                />
                 <span>{img.original_name}</span>
               </div>
             ))}

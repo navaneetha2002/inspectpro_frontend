@@ -95,10 +95,12 @@ export default function Images() {
         if (data.submissionUuid) {
           localStorage.setItem(`schedule_submission_${scheduleId}`, data.submissionUuid);
         }
-        try {
-          await updateScheduleStatus(scheduleId, 'completed', data.submissionUuid);
-        } catch (err) {
-          console.error('Failed to update schedule after submission:', err);
+        if (decision === 'approved') {
+          try {
+            await updateScheduleStatus(scheduleId, 'completed', data.submissionUuid);
+          } catch (err) {
+            console.error('Failed to update schedule after submission:', err);
+          }
         }
       }
 
