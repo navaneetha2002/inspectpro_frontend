@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -181,7 +181,7 @@ useEffect(() => {
     const sub = r.data?.submission ?? null;
     setSubmissionStatus(sub);
 
-    // ✅ Auto-complete if submission is approved and schedule isn't completed yet
+    // âœ… Auto-complete if submission is approved and schedule isn't completed yet
     if (sub?.status === 'approved' && props.status !== 'completed') {
       await updateScheduleStatus(props.id, 'completed');
       await loadSchedules();
@@ -330,7 +330,7 @@ useEffect(() => {
     if (uuid) notifyReviewDeadlineMissed(uuid).catch(() => {});
   }
 
-  if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
+  if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loadingâ€¦</p>;
 
   return (
     <div>
@@ -346,7 +346,7 @@ useEffect(() => {
       {error && (
         <div className="alert alert-info" style={{ borderColor: '#fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{error}</span>
-          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'inherit' }}>×</button>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'inherit' }}>Ã—</button>
         </div>
       )}
 
@@ -378,7 +378,7 @@ useEffect(() => {
         />
       </div>
 
-      {/* ── Create Schedule Modal ── */}
+      {/* â”€â”€ Create Schedule Modal â”€â”€ */}
       {showForm && canCreate && (
         <div className="modal-overlay" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setFilteredAttendees([]); setFilteredInspectors([]); setFilteredCategories([]); }}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
@@ -409,7 +409,7 @@ useEffect(() => {
                         setForm(f => ({ ...f, location_id: locId, attendee_id: '', assigned_to: '', category_id: '' }));
                         loadLocationData(locId);
                       }}>
-                      <option value="">Select location…</option>
+                      <option value="">Select locationâ€¦</option>
                       {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   )}
@@ -421,7 +421,7 @@ useEffect(() => {
                     onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
                     style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
-                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select category…'}
+                      {!form.location_id ? 'Select location firstâ€¦' : locationDataLoading ? 'Loadingâ€¦' : 'Select categoryâ€¦'}
                     </option>
                     {filteredCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -435,7 +435,7 @@ useEffect(() => {
                     onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
                     style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
-                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select inspector…'}
+                      {!form.location_id ? 'Select location firstâ€¦' : locationDataLoading ? 'Loadingâ€¦' : 'Select inspectorâ€¦'}
                     </option>
                     {filteredInspectors.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                   </select>
@@ -447,7 +447,7 @@ useEffect(() => {
                     onChange={e => setForm(f => ({ ...f, attendee_id: e.target.value }))}
                     style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
-                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select attendee…'}
+                      {!form.location_id ? 'Select location firstâ€¦' : locationDataLoading ? 'Loadingâ€¦' : 'Select attendeeâ€¦'}
                     </option>
                     {filteredAttendees.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                   </select>
@@ -471,7 +471,7 @@ useEffect(() => {
               <div className="form-group">
                 <label>Notes <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(optional)</small></label>
                 <textarea className="form-input form-textarea" rows={2}
-                  placeholder="Any additional instructions…"
+                  placeholder="Any additional instructionsâ€¦"
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
@@ -481,7 +481,7 @@ useEffect(() => {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Saving…' : 'Create Schedule'}
+                  {submitting ? 'Savingâ€¦' : 'Create Schedule'}
                 </button>
               </div>
             </form>
@@ -489,7 +489,7 @@ useEffect(() => {
         </div>
       )}
 
-      {/* ── Event Detail Modal ── */}
+      {/* â”€â”€ Event Detail Modal â”€â”€ */}
       {sel && (
         <div
           className="modal-overlay"
@@ -512,7 +512,7 @@ useEffect(() => {
             }}
           >
 
-            {/* ── Fixed Header ── */}
+            {/* â”€â”€ Fixed Header â”€â”€ */}
             <div style={{ padding: '1.25rem 1.25rem 1rem', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -557,12 +557,12 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* ── Scrollable Body ── */}
+            {/* â”€â”€ Scrollable Body â”€â”€ */}
             <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 1.25rem' }}>
               <div style={{ background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: '1rem' }}>
                 <DetailRow label="Assigned To" value={sel.assigned_to_name || `User #${sel.assigned_to}`} />
-                <DetailRow label="Attendee"    value={sel.attendee_name    || '—'} />
-                <DetailRow label="Created By"  value={sel.created_by_name  || '—'} />
+                <DetailRow label="Attendee"    value={sel.attendee_name    || 'â€”'} />
+                <DetailRow label="Created By"  value={sel.created_by_name  || 'â€”'} />
                 <DetailRow label="Scheduled"   value={new Date(sel.scheduled_at).toLocaleString()} />
                 {sel.submission_deadline && (
                   <DetailRow
@@ -589,7 +589,7 @@ useEffect(() => {
                 {sel.notes && <DetailRow label="Notes" value={sel.notes} last />}
               </div>
 
-              {/* ── Reassign Panel ── */}
+              {/* â”€â”€ Reassign Panel â”€â”€ */}
               {reassigning && (
                 <div style={{
                   background: 'var(--bg)', borderRadius: 8,
@@ -600,7 +600,7 @@ useEffect(() => {
                     Reassign Inspector &amp; Attendee
                   </p>
                   {reassignDataLoading ? (
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>Loading users…</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>Loading usersâ€¦</p>
                   ) : (
                     <>
                       <div className="form-group" style={{ marginBottom: 0 }}>
@@ -612,7 +612,7 @@ useEffect(() => {
                           value={reassignForm.assigned_to}
                           onChange={e => setReassignForm(f => ({ ...f, assigned_to: e.target.value }))}
                         >
-                          <option value="">Select inspector…</option>
+                          <option value="">Select inspectorâ€¦</option>
                           {reassignInspectors.map(u => (
                             <option key={u.id} value={u.id}>{u.username}</option>
                           ))}
@@ -642,7 +642,7 @@ useEffect(() => {
                           disabled={!reassignForm.assigned_to || reassignLoading}
                           onClick={handleReassign}
                         >
-                          {reassignLoading ? 'Saving…' : 'Save'}
+                          {reassignLoading ? 'Savingâ€¦' : 'Save'}
                         </button>
                       </div>
                     </>
@@ -667,9 +667,9 @@ useEffect(() => {
                       color: submissionStatus.status === 'approved' ? '#166534'
                            : submissionStatus.status === 'rejected' ? '#991b1b' : '#854d0e',
                     }}>
-                      {submissionStatus.status === 'approved' ? '✓ Approved'
-                     : submissionStatus.status === 'rejected' ? '✗ Rejected'
-                     : '⏳ Pending Review'}
+                      {submissionStatus.status === 'approved' ? 'âœ“ Approved'
+                     : submissionStatus.status === 'rejected' ? 'âœ— Rejected'
+                     : 'â³ Pending Review'}
                     </span>
                     {submissionStatus.reviewed_by_username && (
                       <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
@@ -695,13 +695,13 @@ useEffect(() => {
 
               {sel.status === 'completed' && !submissionStatus && (
                 <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-                  Loading inspection result…
+                  Loading inspection resultâ€¦
                 </div>
               )}
             </div>
-            {/* ── End Scrollable Body ── */}
+            {/* â”€â”€ End Scrollable Body â”€â”€ */}
 
-            {/* ── Fixed Footer ── */}
+            {/* â”€â”€ Fixed Footer â”€â”€ */}
             <div style={{
               flexShrink: 0, padding: '1rem 1.25rem',
               borderTop: '1px solid var(--border)',
@@ -803,43 +803,6 @@ useEffect(() => {
                   </div>
                 )
               )}
-                <button className="btn btn-primary" onClick={async () => {
-                  try {
-                    await updateScheduleStatus(sel.id, 'in_progress');
-                    setSelectedEvent(null);
-                    await loadSchedules();
-                    if (sel.category_slug) {
-                      const p = new URLSearchParams();
-                      if (sel.location_slug) p.set('location', sel.location_slug);
-                      p.set('schedule_id', sel.id);
-                      navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                    }
-                  } catch {
-                    setError('Failed to start inspection.');
-                  }
-                }}>
-                  Start Inspection
-                </button>
-              ) : isDeadlinePassed ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                  <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                    Start Inspection
-                  </button>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
-                    Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
-                  </span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                  <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                    Start Inspection
-                  </button>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-                    Available from {new Date(sel.scheduled_at).toLocaleString()}
-                  </span>
-                </div>
-              )
-            )}
 
               {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && !submissionStatus && (
                 isAdmin || !isDeadlinePassed ? (
@@ -887,13 +850,13 @@ useEffect(() => {
                 </button>
               )}
 
-              {/* Review & Add Remarks — attendee only, when submission is rejected */}
+              {/* Review & Add Remarks â€” attendee only, when submission is rejected */}
               {(sel.status === 'completed' || sel.status === 'in_progress') && isAttendee &&
                (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' && (
                 isReviewDeadlinePassed ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
                     <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                      📝 Review &amp; Add Remarks
+                      ðŸ“ Review &amp; Add Remarks
                     </button>
                     <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
                       Review deadline passed ({new Date(reviewDeadline).toLocaleString()})
@@ -905,7 +868,7 @@ useEffect(() => {
                     const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
                     if (uuid) navigate(`/submissions/${uuid}/review`);
                   }}>
-                    📝 Review &amp; Add Remarks
+                    ðŸ“ Review &amp; Add Remarks
                     {reviewDeadline && (
                       <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 400, opacity: 0.85 }}>
                         Due by {new Date(reviewDeadline).toLocaleString()}
@@ -915,7 +878,7 @@ useEffect(() => {
                 )
               )}
 
-              {/* Start Re-inspection — assigned inspector or admin, when submission is under_review */}
+              {/* Start Re-inspection â€” assigned inspector or admin, when submission is under_review */}
               {(sel.status === 'completed' || sel.status === 'in_progress') &&
                (isAdmin || (isAssignedInspector && role === 'inspector')) &&
                (submissionStatus?.overall_status || submissionStatus?.status) === 'under_review' && (
@@ -924,7 +887,7 @@ useEffect(() => {
                   const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
                   if (uuid) navigate(`/submissions/${uuid}/reinspect`);
                 }}>
-                  🔄 Start Re-inspection
+                  ðŸ”„ Start Re-inspection
                 </button>
               )}
 
@@ -944,7 +907,7 @@ useEffect(() => {
                 Close
               </button>
             </div>
-            {/* ── End Fixed Footer ── */}
+            {/* â”€â”€ End Fixed Footer â”€â”€ */}
 
           </div>
         </div>
