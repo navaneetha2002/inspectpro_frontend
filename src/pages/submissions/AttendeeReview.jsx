@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getSubmission, getRounds, submitRemarks, uploadAttendeeImages, submitAttendeeReview } from '../../api/api';
+import { getSubmission, getRounds, submitRemarks, uploadAttendeeImages, submitAttendeeReview, notifyReviewDeadlineMissed } from '../../api/api';
 
 export default function AttendeeReview() {
    console.log('AttendeeReview mounted');
@@ -69,7 +69,13 @@ export default function AttendeeReview() {
   const answersToReview = (rejectedRound?.answers && Object.keys(rejectedRound.answers).length > 0)
     ? rejectedRound.answers
     : (currentRound.answers || {});
-  const reviewNotes = rejectedRound?.review_notes ?? currentRound.review_notes;
+  const reviewNotes    = rejectedRound?.review_notes ?? currentRound.review_notes;
+  const reviewDeadline = rejectedRound?.review_deadline ?? null;
+  const deadlinePassed = reviewDeadline ? Date.now() > new Date(reviewDeadline).getTime() : false;
+
+  if (deadlinePassed) {
+    notifyReviewDeadlineMissed(uuid).catch(() => {});
+  }
 
   console.log('[AttendeeReview] overall_status:', submission.overall_status);
   console.log('[AttendeeReview] rounds.current_round:', rounds.current_round);
@@ -165,8 +171,31 @@ export default function AttendeeReview() {
       }}>
         This inspection was <strong>rejected</strong>
         {reviewNotes && `: "${reviewNotes}"`}.
-        Add your remarks below for each question and submit for re-inspection.
+        {reviewDeadline && (
+          <span style={{ display: 'block', marginTop: '0.35rem', fontSize: '0.85rem' }}>
+            Review deadline:{' '}
+            <strong style={{ color: deadlinePassed ? '#dc2626' : '#991b1b' }}>
+              {new Date(reviewDeadline).toLocaleString()}
+            </strong>
+            {deadlinePassed && ' — Deadline has passed'}
+          </span>
+        )}
+        {!deadlinePassed && ' Add your remarks below for each question and submit for re-inspection.'}
       </div>
+
+      {deadlinePassed && (
+        <div style={{
+          padding: '1.25rem', marginBottom: '1.5rem', borderRadius: 8,
+          background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b',
+          textAlign: 'center',
+        }}>
+          <p style={{ fontWeight: 600, marginBottom: '0.4rem' }}>Review deadline has passed</p>
+          <p style={{ fontSize: '0.875rem', margin: 0 }}>
+            The deadline to submit your review was {new Date(reviewDeadline).toLocaleString()}.
+            Contact your coordinator or admin to extend the deadline.
+          </p>
+        </div>
+      )}
 
       {error && (
         <div style={{
@@ -177,7 +206,7 @@ export default function AttendeeReview() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      {!deadlinePassed && <form onSubmit={handleSubmit}>
         {/* Per-question remarks */}
         <div className="detail-section">
           <h2>Add Remarks Per Question</h2>
@@ -258,7 +287,7 @@ export default function AttendeeReview() {
             Cancel
           </button>
         </div>
-      </form>
+      </form>}
     </div>
   );
 }
