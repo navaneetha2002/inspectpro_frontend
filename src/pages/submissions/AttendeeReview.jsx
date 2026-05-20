@@ -160,7 +160,14 @@ export default function AttendeeReview() {
           <span className="breadcrumb-current">Attendee Review</span>
         </nav>
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
-          <h1>Review Inspection — Round {currentRound.round_number}</h1>
+          <div>
+            <h1>Review Inspection — Round {currentRound.round_number}</h1>
+            {submission.schedule_title && (
+              <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--muted)', fontWeight: 500 }}>
+                {submission.schedule_title}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 

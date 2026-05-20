@@ -145,7 +145,14 @@ export default function ReInspect() {
           <span className="breadcrumb-current">Re-inspection Round {rounds.current_round}</span>
         </nav>
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
-          <h1>Re-inspection — Round {rounds.current_round}</h1>
+          <div>
+            <h1>Re-inspection — Round {rounds.current_round}</h1>
+            {rounds.schedule_title && (
+              <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--muted)', fontWeight: 500 }}>
+                {rounds.schedule_title}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
