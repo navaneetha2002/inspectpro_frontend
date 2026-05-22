@@ -69,8 +69,8 @@ export default function CalendarPage() {
   const [submissionRounds,     setSubmissionRounds]     = useState(null);
   const [showExtendDeadline,   setShowExtendDeadline]   = useState(false);
   const [newDeadline,          setNewDeadline]           = useState('');
-  const [reassigning,          setReassigning]          = useState(false);
-  const [reassignForm,         setReassignForm]         = useState({ assigned_to: '', attendee_id: '' });
+  const [showReassignModal,    setShowReassignModal]    = useState(false);
+  const [reassignForm,         setReassignForm]         = useState({ assigned_to: '', attendee_id: '', submission_deadline: '' });
   const [reassignLoading,      setReassignLoading]      = useState(false);
   const [reassignDataLoading,  setReassignDataLoading]  = useState(false);
   const [reassignInspectors,   setReassignInspectors]   = useState([]);
@@ -167,6 +167,33 @@ export default function CalendarPage() {
   }, [showForm, isLocationLocked, userLocationId, loadLocationData]);
 
   function handleEventClick({ event }) {
+  const props = event.extendedProps;
+  console.log('attendee_review_due:', props.attendee_review_due);
+  console.log('full sel props:', props);
+  setSelectedEvent(props);
+  setSubmissionStatus(null);
+  setSubmissionRounds(null);
+  setShowExtendDeadline(false);
+  setNewDeadline('');
+
+  if (props.status === 'completed' || props.status === 'in_progress') {
+    const uuid = props.submission_uuid
+      || localStorage.getItem(`schedule_submission_${props.id}`);
+    if (uuid) {
+      getSubmission(uuid)
+  .then(async r => {
+    const sub = r.data?.submission ?? null;
+    setSubmissionStatus(sub);
+
+    // âœ… Auto-complete if submission is approved and schedule isn't completed yet
+    if (sub?.status === 'approved' && props.status !== 'completed') {
+      await updateScheduleStatus(props.id, 'completed');
+      await loadSchedules();
+      // Update the selectedEvent so the modal reflects the new status
+      setSelectedEvent(prev => prev ? { ...prev, status: 'completed' } : prev);
+    }
+  })
+  .catch(() => setSubmissionStatus(null));
     const props = event.extendedProps;
     setSelectedEvent(props);
     setSubmissionStatus(null);
@@ -282,10 +309,13 @@ if (err?.response?.status === 404) {
   }
 
   async function openReassign(schedule) {
-    setReassigning(true);
+    setShowReassignModal(true);
     setReassignForm({
-      assigned_to:  String(schedule.assigned_to  ?? ''),
-      attendee_id:  String(schedule.attendee_id  ?? ''),
+      assigned_to:         String(schedule.assigned_to  ?? ''),
+      attendee_id:         String(schedule.attendee_id  ?? ''),
+      submission_deadline: schedule.submission_deadline
+        ? schedule.submission_deadline.slice(0, 16)
+        : '',
     });
     if (!schedule.location_id) return;
     setReassignDataLoading(true);
@@ -308,15 +338,16 @@ if (err?.response?.status === 404) {
     setReassignLoading(true);
     try {
       await updateSchedule(sel.id, {
-        title:        sel.title,
-        assigned_to:  Number(reassignForm.assigned_to),
-        attendee_id:  reassignForm.attendee_id ? Number(reassignForm.attendee_id) : null,
-        category_id:  sel.category_id  ?? null,
-        location_id:  sel.location_id  ?? null,
-        scheduled_at: sel.scheduled_at,
-        notes:        sel.notes ?? null,
+        title:               sel.title,
+        assigned_to:         Number(reassignForm.assigned_to),
+        attendee_id:         reassignForm.attendee_id ? Number(reassignForm.attendee_id) : null,
+        category_id:         sel.category_id  ?? null,
+        location_id:         sel.location_id  ?? null,
+        scheduled_at:        sel.scheduled_at,
+        submission_deadline: reassignForm.submission_deadline || null,
+        notes:               sel.notes ?? null,
       });
-      setReassigning(false);
+      setShowReassignModal(false);
       setSelectedEvent(null);
       await loadSchedules();
     } catch {
@@ -343,10 +374,12 @@ if (err?.response?.status === 404) {
         .sort((a, b) => b.round_number - a.round_number)
         .find(r => r.status === 'rejected')
     : null;
-  const reviewDeadline         = rejectedRound?.review_deadline ?? rejectedRound?.attendee_review_deadline ?? null;
-  const isReviewDeadlinePassed = reviewDeadline
-    ? Date.now() > new Date(reviewDeadline).getTime()
-    : false;
+  const reviewDeadline       = sel?.attendee_review_due ?? null;
+ const isReviewDeadlinePassed = reviewDeadline
+  ? new Date(reviewDeadline) < new Date()
+  : false;
+  const attendeeReviewSubmitted = rejectedRound != null && (submissionRounds?.rounds ?? []).some(
+    r => r.round_number > rejectedRound.round_number);
 
   // Fire-and-forget: notify admins/coordinator/inspector if attendee missed their review deadline
   if (isReviewDeadlinePassed && submissionStatus?.overall_status === 'rejected') {
@@ -514,367 +547,488 @@ if (err?.response?.status === 404) {
         </div>
       )}
 
-      {/* ── Event Detail Modal ── */}
-      {sel && (
-        <div
-          className="modal-overlay"
-          onClick={() => { setSelectedEvent(null); setReassigning(false); }}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.45)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '1rem',
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              background: 'var(--surface)', borderRadius: 12,
-              width: '100%', maxWidth: 440, maxHeight: '85vh',
-              display: 'flex', flexDirection: 'column',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-              overflow: 'hidden',
-            }}
-          >
-
-            {/* ── Fixed Header ── */}
-            <div style={{ padding: '1.25rem 1.25rem 1rem', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h2 className="modal-title" style={{ margin: 0 }}>{sel.title}</h2>
-                  {sel.category_name && (
-                    <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
-                      {sel.category_name}{sel.location_name ? ` @ ${sel.location_name}` : ''}
-                    </span>
-                  )}
-                  {(isAssignedInspector || isAttendee) && (
-                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                      {isAssignedInspector && (
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                          background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
-                          borderRadius: 6, padding: '2px 10px', fontSize: '0.75rem', fontWeight: 600,
-                        }}>
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
-                          Assigned Inspector
-                        </span>
-                      )}
-                      {isAttendee && (
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                          background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0',
-                          borderRadius: 6, padding: '2px 10px', fontSize: '0.75rem', fontWeight: 600,
-                        }}>
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                          Attendee
-                        </span>
-                      )}
-                    </div>
-                  )}
+      {/* ── Reassign Schedule Modal ── */}
+      {showReassignModal && sel && canManage && (
+        <div className="modal-overlay" onClick={() => setShowReassignModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <h2 className="modal-title">Reassign Schedule</h2>
+            <p className="modal-message" style={{ marginBottom: '1.25rem' }}>
+              Update the inspector, attendee, or submission deadline. All other fields are locked.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Title</label>
+                <input type="text" className="form-input" value={sel.title} readOnly
+                  style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Location</label>
+                  <input className="form-input" value={sel.location_name ?? ''} readOnly
+                    style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
                 </div>
-                <span style={{
-                  background: STATUS_COLOR[sel.status] ?? '#6b7280', color: '#fff',
-                  borderRadius: 6, padding: '3px 10px', fontSize: '0.78rem', fontWeight: 700,
-                  whiteSpace: 'nowrap', flexShrink: 0,
-                }}>
-                  {STATUS_LABEL[sel.status] ?? sel.status}
-                </span>
+                <div className="form-group">
+                  <label>Category</label>
+                  <input className="form-input" value={sel.category_name ?? ''} readOnly
+                    style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
+                </div>
               </div>
-            </div>
-
-            {/* ── Scrollable Body ── */}
-            <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 1.25rem' }}>
-              <div style={{ background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: '1rem' }}>
-                <DetailRow label="Assigned To" value={sel.assigned_to_name || `User #${sel.assigned_to}`} />
-                <DetailRow label="Attendee"    value={sel.attendee_name    || '–'} />
-                <DetailRow label="Created By"  value={sel.created_by_name  || '–'} />
-                <DetailRow label="Scheduled"   value={new Date(sel.scheduled_at).toLocaleString()} />
-                {sel.submission_deadline && (
-                  <DetailRow
-                    label="Submit By"
-                    value={
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        {new Date(sel.submission_deadline).toLocaleString()}
-                        {isDeadlinePassed && sel.status !== 'completed' && (
-                          <span style={{
-                            fontSize: '0.7rem', fontWeight: 700, color: '#dc2626',
-                            background: '#fef2f2', border: '1px solid #fca5a5',
-                            borderRadius: 4, padding: '1px 6px',
-                          }}>
-                            Deadline passed
-                          </span>
-                        )}
-                      </span>
-                    }
-                  />
-                )}
-                {sel.submission_id && (
-                  <DetailRow label="Submission ID" value={`#${sel.submission_id}`} />
-                )}
-                {sel.notes && <DetailRow label="Notes" value={sel.notes} last />}
-              </div>
-
-              {/* ── Reassign Panel ── */}
-              {reassigning && (
-                <div style={{
-                  background: 'var(--bg)', borderRadius: 8,
-                  border: '1px solid #bfdbfe', padding: '1rem',
-                  marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem',
-                }}>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
-                    Reassign Inspector &amp; Attendee
-                  </p>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Assign To <span style={{ color: 'var(--danger)' }}>*</span></label>
                   {reassignDataLoading ? (
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>Loading users…</p>
+                    <input className="form-input" value="Loading…" readOnly />
                   ) : (
-                    <>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                          Inspector <span style={{ color: 'var(--danger)' }}>*</span>
-                        </label>
-                        <select
-                          className="form-input"
-                          value={reassignForm.assigned_to}
-                          onChange={e => setReassignForm(f => ({ ...f, assigned_to: e.target.value }))}
-                        >
-                          <option value="">Select inspector…</option>
-                          {reassignInspectors.map(u => (
-                            <option key={u.id} value={u.id}>{u.username}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                          Attendee
-                        </label>
-                        <select
-                          className="form-input"
-                          value={reassignForm.attendee_id}
-                          onChange={e => setReassignForm(f => ({ ...f, attendee_id: e.target.value }))}
-                        >
-                          <option value="">None</option>
-                          {reassignAttendees.map(u => (
-                            <option key={u.id} value={u.id}>{u.username}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setReassigning(false)}>
-                          Cancel
-                        </button>
-                        <button
-                          className="btn btn-primary btn-sm"
-                          disabled={!reassignForm.assigned_to || reassignLoading}
-                          onClick={handleReassign}
-                        >
-                          {reassignLoading ? 'Saving…' : 'Save'}
-                        </button>
-                      </div>
-                    </>
+                    <select className="form-input" value={reassignForm.assigned_to}
+                      onChange={e => setReassignForm(f => ({ ...f, assigned_to: e.target.value }))}>
+                      <option value="">Select inspector…</option>
+                      {reassignInspectors.map(u => (
+                        <option key={u.id} value={u.id}>{u.username}</option>
+                      ))}
+                    </select>
                   )}
                 </div>
+                <div className="form-group">
+                  <label>Attendee <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(location side)</small></label>
+                  {reassignDataLoading ? (
+                    <input className="form-input" value="Loading…" readOnly />
+                  ) : (
+                    <select className="form-input" value={reassignForm.attendee_id}
+                      onChange={e => setReassignForm(f => ({ ...f, attendee_id: e.target.value }))}>
+                      <option value="">None</option>
+                      {reassignAttendees.map(u => (
+                        <option key={u.id} value={u.id}>{u.username}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Scheduled At</label>
+                  <input type="text" className="form-input"
+                    value={new Date(sel.scheduled_at).toLocaleString()} readOnly
+                    style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
+                </div>
+                <div className="form-group">
+                  <label>Submit By <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(deadline)</small></label>
+                  <input type="datetime-local" className="form-input"
+                    value={reassignForm.submission_deadline}
+                    onChange={e => setReassignForm(f => ({ ...f, submission_deadline: e.target.value }))} />
+                </div>
+              </div>
+              {sel.notes && (
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea className="form-input form-textarea" rows={2} value={sel.notes ?? ''} readOnly
+                    style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
+                </div>
               )}
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary"
+                  onClick={() => setShowReassignModal(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary"
+                  disabled={!reassignForm.assigned_to || reassignLoading}
+                  onClick={handleReassign}>
+                  {reassignLoading ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-              {/* Submission status block */}
-              {sel.status === 'completed' && submissionStatus && (
-                <div style={{
-                  marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 8,
-                  background: submissionStatus.status === 'approved' ? '#f0fdf4'
-                            : submissionStatus.status === 'rejected' ? '#fef2f2' : '#fefce8',
-                  border: `1px solid ${
-                    submissionStatus.status === 'approved' ? '#86efac'
-                    : submissionStatus.status === 'rejected' ? '#fca5a5' : '#fde047'
-                  }`,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* ── Event Detail Modal ── */}
+{sel && !showReassignModal && (
+  <div
+    className="modal-overlay"
+    onClick={() => { setSelectedEvent(null); setShowReassignModal(false); }}
+    style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '1rem',
+    }}
+  >
+    <div
+      onClick={e => e.stopPropagation()}
+      style={{
+        background: 'var(--surface)', borderRadius: 12,
+        width: '100%', maxWidth: 440, maxHeight: '85vh',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+        overflow: 'hidden',
+      }}
+    >
+
+      {/* ── Fixed Header ── */}
+      <div style={{ padding: '1.25rem 1.25rem 1rem', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 className="modal-title" style={{ margin: 0 }}>{sel.title}</h2>
+            {sel.category_name && (
+              <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                {sel.category_name}{sel.location_name ? ` @ ${sel.location_name}` : ''}
+              </span>
+            )}
+            {(isAssignedInspector || isAttendee) && (
+              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                {isAssignedInspector && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                    background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                    borderRadius: 6, padding: '2px 10px', fontSize: '0.75rem', fontWeight: 600,
+                  }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                    Assigned Inspector
+                  </span>
+                )}
+                {isAttendee && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                    background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0',
+                    borderRadius: 6, padding: '2px 10px', fontSize: '0.75rem', fontWeight: 600,
+                  }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                    Attendee
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <span style={{
+            background: STATUS_COLOR[sel.status] ?? '#6b7280', color: '#fff',
+            borderRadius: 6, padding: '3px 10px', fontSize: '0.78rem', fontWeight: 700,
+            whiteSpace: 'nowrap', flexShrink: 0,
+          }}>
+            {STATUS_LABEL[sel.status] ?? sel.status}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Scrollable Body ── */}
+      <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 1.25rem' }}>
+        <div style={{ background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: '1rem' }}>
+          <DetailRow label="Assigned To" value={sel.assigned_to_name || `User #${sel.assigned_to}`} />
+          <DetailRow label="Attendee"    value={sel.attendee_name    || '—'} />
+          <DetailRow label="Created By"  value={sel.created_by_name  || '—'} />
+          <DetailRow label="Scheduled"   value={new Date(sel.scheduled_at).toLocaleString()} />
+
+          {/* ── INSPECTOR: sees submission_deadline as "Submit By" ── */}
+          {isAssignedInspector && !isAttendee && sel.submission_deadline && (
+            <DetailRow
+              label="Submit By"
+              value={
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{
+                    color: isDeadlinePassed ? '#dc2626' : 'var(--text)',
+                    fontWeight: isDeadlinePassed ? 600 : 500,
+                  }}>
+                    {new Date(sel.submission_deadline).toLocaleString()}
+                  </span>
+                  {submissionStatus && ['submitted','approved','rejected','under_review'].includes(
+                    submissionStatus.overall_status ?? submissionStatus.status
+                  ) ? (
                     <span style={{
-                      fontWeight: 700, fontSize: '0.9rem',
-                      color: submissionStatus.status === 'approved' ? '#166534'
-                           : submissionStatus.status === 'rejected' ? '#991b1b' : '#854d0e',
+                      fontSize: '0.7rem', fontWeight: 700, color: '#166534',
+                      background: '#f0fdf4', border: '1px solid #86efac',
+                      borderRadius: 4, padding: '1px 6px',
                     }}>
-                      {submissionStatus.status === 'approved' ? '✓ Approved'
-                     : submissionStatus.status === 'rejected' ? '✗ Rejected'
-                     : '⏳ Pending Review'}
+                      Submitted
                     </span>
-                    {submissionStatus.reviewed_by_username && (
-                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                        by {submissionStatus.reviewed_by_username}
-                      </span>
-                    )}
-                  </div>
-                  {submissionStatus.reviewed_at && (
-                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
-                      {new Date(submissionStatus.reviewed_at).toLocaleString()}
-                    </div>
-                  )}
-                  {submissionStatus.review_notes && (
-                    <div style={{
-                      marginTop: '0.5rem', fontSize: '0.85rem', color: '#475569',
-                      borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem',
+                  ) : isDeadlinePassed && sel.status !== 'completed' ? (
+                    <span style={{
+                      fontSize: '0.7rem', fontWeight: 700, color: '#dc2626',
+                      background: '#fef2f2', border: '1px solid #fca5a5',
+                      borderRadius: 4, padding: '1px 6px',
                     }}>
-                      {submissionStatus.review_notes}
-                    </div>
-                  )}
-                </div>
-              )}
+                      Deadline passed
+                    </span>
+                  ) : null}
+                </span>
+              }
+            />
+          )}
 
-              {sel.status === 'completed' && !submissionStatus && (
-                <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-                  Loading inspection result…
-                </div>
+          {/* ── ATTENDEE: sees attendee_review_due as "Submit By" ── */}
+          {isAttendee && !isAssignedInspector && (
+            sel.attendee_review_due ? (
+              <DetailRow
+                label="Submit By"
+                value={
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{
+                      color: isReviewDeadlinePassed ? '#dc2626' : '#7e22ce',
+                      fontWeight: 600,
+                    }}>
+                      {new Date(sel.attendee_review_due).toLocaleString()}
+                    </span>
+                    {attendeeReviewSubmitted ? (
+                      <span style={{
+                        fontSize: '0.7rem', fontWeight: 700, color: '#166534',
+                        background: '#f0fdf4', border: '1px solid #86efac',
+                        borderRadius: 4, padding: '1px 6px',
+                      }}>
+                        Submitted
+                      </span>
+                    ) : isReviewDeadlinePassed ? (
+                      <span style={{
+                        fontSize: '0.7rem', fontWeight: 700, color: '#dc2626',
+                        background: '#fef2f2', border: '1px solid #fca5a5',
+                        borderRadius: 4, padding: '1px 6px',
+                      }}>
+                        Deadline passed
+                      </span>
+                    ) : null}
+                  </span>
+                }
+              />
+            ) : (
+              // Rejected but inspector hasn't set a deadline yet
+              (submissionStatus?.overall_status ?? submissionStatus?.status) === 'rejected' && (
+                <DetailRow
+                  label="Submit By"
+                  value={
+                    <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                      Not set by inspector yet
+                    </span>
+                  }
+                />
+              )
+            )
+          )}
+
+          {/* ── ADMIN: sees both deadlines separately ── */}
+          {isAdmin && (
+            <>
+              {sel.submission_deadline && (
+                <DetailRow
+                  label="Inspector Deadline"
+                  value={
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      {new Date(sel.submission_deadline).toLocaleString()}
+                      {isDeadlinePassed && sel.status !== 'completed' && (
+                        <span style={{
+                          fontSize: '0.7rem', fontWeight: 700, color: '#dc2626',
+                          background: '#fef2f2', border: '1px solid #fca5a5',
+                          borderRadius: 4, padding: '1px 6px',
+                        }}>
+                          Passed
+                        </span>
+                      )}
+                    </span>
+                  }
+                />
+              )}
+              {sel.attendee_review_due && (
+                <DetailRow
+                  label="Attendee Review Due"
+                  value={
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ color: '#7e22ce', fontWeight: 500 }}>
+                        {new Date(sel.attendee_review_due).toLocaleString()}
+                      </span>
+                      {attendeeReviewSubmitted ? (
+                        <span style={{
+                          fontSize: '0.7rem', fontWeight: 700, color: '#166534',
+                          background: '#f0fdf4', border: '1px solid #86efac',
+                          borderRadius: 4, padding: '1px 6px',
+                        }}>
+                          Submitted
+                        </span>
+                      ) : isReviewDeadlinePassed ? (
+                        <span style={{
+                          fontSize: '0.7rem', fontWeight: 700, color: '#dc2626',
+                          background: '#fef2f2', border: '1px solid #fca5a5',
+                          borderRadius: 4, padding: '1px 6px',
+                        }}>
+                          Passed
+                        </span>
+                      ) : null}
+                    </span>
+                  }
+                />
+              )}
+            </>
+          )}
+
+          {sel.submission_id && (
+            <DetailRow label="Submission ID" value={`#${sel.submission_id}`} />
+          )}
+          {sel.notes && <DetailRow label="Notes" value={sel.notes} last />}
+        </div>
+
+        {/* Submission status block */}
+        {sel.status === 'completed' && submissionStatus && (
+          <div style={{
+            marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 8,
+            background: submissionStatus.status === 'approved' ? '#f0fdf4'
+                      : submissionStatus.status === 'rejected' ? '#fef2f2' : '#fefce8',
+            border: `1px solid ${
+              submissionStatus.status === 'approved' ? '#86efac'
+              : submissionStatus.status === 'rejected' ? '#fca5a5' : '#fde047'
+            }`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{
+                fontWeight: 700, fontSize: '0.9rem',
+                color: submissionStatus.status === 'approved' ? '#166534'
+                     : submissionStatus.status === 'rejected' ? '#991b1b' : '#854d0e',
+              }}>
+                {submissionStatus.status === 'approved' ? '✓ Approved'
+               : submissionStatus.status === 'rejected' ? '✗ Rejected'
+               : '⏳ Pending Review'}
+              </span>
+              {submissionStatus.reviewed_by_username && (
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  by {submissionStatus.reviewed_by_username}
+                </span>
               )}
             </div>
-            {/* ── End Scrollable Body ── */}
+            {submissionStatus.reviewed_at && (
+              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
+                {new Date(submissionStatus.reviewed_at).toLocaleString()}
+              </div>
+            )}
+            {submissionStatus.review_notes && (
+              <div style={{
+                marginTop: '0.5rem', fontSize: '0.85rem', color: '#475569',
+                borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem',
+              }}>
+                {submissionStatus.review_notes}
+              </div>
+            )}
+          </div>
+        )}
 
-            {/* ── Fixed Footer ── */}
-            <div style={{
-              flexShrink: 0, padding: '1rem 1.25rem',
-              borderTop: '1px solid var(--border)',
-              display: 'flex', flexWrap: 'wrap', gap: '0.6rem',
+        {sel.status === 'completed' && !submissionStatus && (
+          <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: '#94a3b8' }}>
+            Loading inspection result…
+          </div>
+        )}
+      </div>
+      {/* ── End Scrollable Body ── */}
+
+      {/* ── Fixed Footer ── */}
+      <div style={{
+        flexShrink: 0, padding: '1rem 1.25rem',
+        borderTop: '1px solid var(--border)',
+        display: 'flex', flexWrap: 'wrap', gap: '0.6rem',
+      }}>
+        {isAttendee && !canActOnSchedule && sel.status === 'completed' && (
+          <button className="btn btn-secondary" onClick={() => {
+            setSelectedEvent(null);
+            const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+            if (uuid) navigate(`/submissions/${uuid}`, { state: { scheduleTitle: sel.title } });
+          }}>
+            View Response
+          </button>
+        )}
+
+        {isCoordinator && sel.status === 'completed' && (
+          <button className="btn btn-secondary" onClick={() => {
+            setSelectedEvent(null);
+            const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+            if (uuid) navigate(`/submissions/${uuid}`, { state: { scheduleTitle: sel.title } });
+          }}>
+            View Response
+          </button>
+        )}
+
+        {isCoordinator && (sel.status === 'pending' || sel.status === 'in_progress') && sel.submission_deadline && (
+          showExtendDeadline ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--muted)' }}>New submission deadline</label>
+              <input
+                type="datetime-local" className="form-input"
+                value={newDeadline}
+                min={new Date().toISOString().slice(0, 16)}
+                onChange={e => setNewDeadline(e.target.value)}
+                style={{ fontSize: '0.875rem' }}
+              />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-primary" style={{ flex: 1 }}
+                  disabled={!newDeadline} onClick={handleExtendDeadline}>
+                  Save
+                </button>
+                <button className="btn btn-secondary"
+                  onClick={() => { setShowExtendDeadline(false); setNewDeadline(''); }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-secondary" onClick={() => {
+              setNewDeadline(sel.submission_deadline.slice(0, 16));
+              setShowExtendDeadline(true);
             }}>
-              {isAttendee && !canActOnSchedule && sel.status === 'completed' && (
-                <button className="btn btn-secondary" onClick={() => {
-                  setSelectedEvent(null);
-                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                  if (uuid) navigate(`/submissions/${uuid}`, { state: { scheduleTitle: sel.title } });
-                }}>
-                  View Response
-                </button>
-              )}
+              {isDeadlinePassed ? 'Extend Deadline' : 'Change Deadline'}
+            </button>
+          )
+        )}
 
-              {isCoordinator && sel.status === 'completed' && (
-                <button className="btn btn-secondary" onClick={() => {
-                  setSelectedEvent(null);
-                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                  if (uuid) navigate(`/submissions/${uuid}`, { state: { scheduleTitle: sel.title } });
-                }}>
-                  View Response
-                </button>
-              )}
+        {sel.status === 'pending' && canActOnSchedule && (
+          isAdmin || (isScheduledTimeReached && !isDeadlinePassed) ? (
+            <button className="btn btn-primary" onClick={async () => {
+              try {
+                await updateScheduleStatus(sel.id, 'in_progress');
+                setSelectedEvent(null);
+                await loadSchedules();
+                if (sel.category_slug) {
+                  const p = new URLSearchParams();
+                  if (sel.location_slug) p.set('location', sel.location_slug);
+                  p.set('schedule_id', sel.id);
+                  navigate(`/form/${sel.category_slug}?${p.toString()}`);
+                }
+              } catch { setError('Failed to start inspection.'); }
+            }}>
+              Start Inspection
+            </button>
+          ) : isDeadlinePassed ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+              <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                Start Inspection
+              </button>
+              <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
+                Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+              <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                Start Inspection
+              </button>
+              <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                Available from {new Date(sel.scheduled_at).toLocaleString()}
+              </span>
+            </div>
+          )
+        )}
 
-              {isCoordinator && (sel.status === 'pending' || sel.status === 'in_progress') && sel.submission_deadline && (
-                showExtendDeadline ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--muted)' }}>New submission deadline</label>
-                    <input
-                      type="datetime-local"
-                      className="form-input"
-                      value={newDeadline}
-                      min={new Date().toISOString().slice(0, 16)}
-                      onChange={e => setNewDeadline(e.target.value)}
-                      style={{ fontSize: '0.875rem' }}
-                    />
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button className="btn btn-primary" style={{ flex: 1 }}
-                        disabled={!newDeadline}
-                        onClick={handleExtendDeadline}>
-                        Save
-                      </button>
-                      <button className="btn btn-secondary"
-                        onClick={() => { setShowExtendDeadline(false); setNewDeadline(''); }}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button className="btn btn-secondary" onClick={() => {
-                    setNewDeadline(sel.submission_deadline.slice(0, 16));
-                    setShowExtendDeadline(true);
-                  }}>
-                    {isDeadlinePassed ? 'Extend Deadline' : 'Change Deadline'}
-                  </button>
-                )
-              )}
-
-              {sel.status === 'pending' && canActOnSchedule && (
-                isAdmin || (isScheduledTimeReached && !isDeadlinePassed) ? (
-                  <button
-                    className="btn btn-primary"
-                    onClick={async () => {
-                      try {
-                        await updateScheduleStatus(sel.id, 'in_progress');
-                        setSelectedEvent(null);
-                        await loadSchedules();
-                        if (sel.category_slug) {
-                          const p = new URLSearchParams();
-                          if (sel.location_slug) p.set('location', sel.location_slug);
-                          p.set('schedule_id', sel.id);
-                          navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                        }
-                      } catch {
-                        setError('Failed to start inspection.');
-                      }
-                    }}
-                  >
-                    Start Inspection
-                  </button>
-                ) : isDeadlinePassed ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                      Start Inspection
-                    </button>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
-                      Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
-                    </span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                      Start Inspection
-                    </button>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
-                      Available from {new Date(sel.scheduled_at).toLocaleString()}
-                    </span>
-                  </div>
-                )
-              )}
-
-              {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && !submissionStatus && (
-                isAdmin || !isDeadlinePassed ? (
-                  <button className="btn btn-primary" onClick={() => {
-                    setSelectedEvent(null);
-                    const p = new URLSearchParams();
-                    if (sel.location_slug) p.set('location', sel.location_slug);
-                    p.set('schedule_id', sel.id);
-                    navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                  }}>
-                    Open Form
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                      Open Form
-                    </button>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
-                      Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
-                    </span>
-                  </div>
-                )
-              )}
-
-              {sel.status === 'in_progress' && isAdmin && (
-                <button className="btn btn-success" onClick={() => handleStatus(sel.id, 'completed')}>
-                  Mark Complete
-                </button>
-              )}
-
-              {(sel.status === 'completed' || (sel.status === 'in_progress' && submissionStatus)) && canActOnSchedule && (
-                <button className="btn btn-secondary" onClick={() => {
-                  setSelectedEvent(null);
-                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                  if (uuid) {
-                    navigate(`/submissions/${uuid}`);
-                  } else if (sel.category_slug) {
-                    const p = new URLSearchParams();
-                    if (sel.location_slug) p.set('location', sel.location_slug);
-                    p.set('schedule_id', sel.id);
-                    navigate(`/form/${sel.category_slug}?${p.toString()}`);
-                  }
-                }}>
-                  View Response
-                </button>
-              )}
-
+        {sel.status === 'in_progress' && canActOnSchedule && sel.category_slug && !submissionStatus && (
+          isAdmin || !isDeadlinePassed ? (
+            <button className="btn btn-primary" onClick={() => {
+              setSelectedEvent(null);
+              const p = new URLSearchParams();
+              if (sel.location_slug) p.set('location', sel.location_slug);
+              p.set('schedule_id', sel.id);
+              navigate(`/form/${sel.category_slug}?${p.toString()}`);
+            }}>
+              Open Form
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+              <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                Open Form
+              </button>
+              <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
+                Submission deadline passed ({new Date(sel.submission_deadline).toLocaleString()})
+              </span>
+            </div>
+          )
+        )}
               {/* Review & Add Remarks – attendee only, when submission is rejected */}
               {(sel.status === 'completed' || sel.status === 'in_progress') && isAttendee &&
                (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' && (
@@ -916,27 +1070,98 @@ if (err?.response?.status === 404) {
                 </button>
               )}
 
-              {canManage && sel.status !== 'completed' && !reassigning && (
-                <button className="btn btn-secondary btn-sm" onClick={() => openReassign(sel)}>
-                  Reassign
-                </button>
-              )}
+        {sel.status === 'in_progress' && isAdmin && (
+          <button className="btn btn-success" onClick={() => handleStatus(sel.id, 'completed')}>
+            Mark Complete
+          </button>
+        )}
 
-              {(isAdmin || ((canManage || isCreator) && sel.status !== 'completed')) && (
-                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(sel.id)}>
-                  Delete
-                </button>
-              )}
+        {(sel.status === 'completed' || (sel.status === 'in_progress' && submissionStatus)) && canActOnSchedule && (
+          <button className="btn btn-secondary" onClick={() => {
+            setSelectedEvent(null);
+            const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+            if (uuid) {
+              navigate(`/submissions/${uuid}`);
+            } else if (sel.category_slug) {
+              const p = new URLSearchParams();
+              if (sel.location_slug) p.set('location', sel.location_slug);
+              p.set('schedule_id', sel.id);
+              navigate(`/form/${sel.category_slug}?${p.toString()}`);
+            }
+          }}>
+            View Response
+          </button>
+        )}
 
-              <button className="btn btn-secondary" onClick={() => { setSelectedEvent(null); setReassigning(false); }} style={{ marginLeft: 'auto' }}>
-                Close
+        {/* Review & Add Remarks — attendee only, when submission is rejected */}
+        {(sel.status === 'completed' || sel.status === 'in_progress') && isAttendee &&
+         (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' && (
+          attendeeReviewSubmitted ? (
+            <button className="btn btn-secondary" disabled style={{ opacity: 0.7, cursor: 'not-allowed' }}>
+              Review Submitted
+            </button>
+          ) : isReviewDeadlinePassed ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+              <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                📝 Review &amp; Add Remarks
               </button>
+              <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
+                Review deadline passed ({reviewDeadline ? new Date(reviewDeadline).toLocaleString() : '—'})
+              </span>
             </div>
+          ) : (
+            <button className="btn btn-primary" onClick={() => {
+              setSelectedEvent(null);
+              const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+              if (uuid) navigate(`/submissions/${uuid}/review`);
+            }}>
+              📝 Review &amp; Add Remarks
+              {reviewDeadline && (
+                <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 400, opacity: 0.85 }}>
+                  Due by {new Date(reviewDeadline).toLocaleString()}
+                </span>
+              )}
+            </button>
+          )
+        )}
             {/* ── End Fixed Footer ── */}
 
-          </div>
-        </div>
-      )}
+        {/* Start Re-inspection — assigned inspector or admin, when submission is under_review */}
+        {(sel.status === 'completed' || sel.status === 'in_progress') &&
+         (isAdmin || (isAssignedInspector && role === 'inspector')) &&
+         (submissionStatus?.overall_status || submissionStatus?.status) === 'under_review' && (
+          <button className="btn btn-primary" onClick={() => {
+            setSelectedEvent(null);
+            const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
+            if (uuid) navigate(`/submissions/${uuid}/reinspect`);
+          }}>
+            🔄 Start Re-inspection
+          </button>
+        )}
+
+        {canManage && sel.status !== 'completed' && (
+          <button className="btn btn-secondary btn-sm" onClick={() => openReassign(sel)}>
+            Reassign
+          </button>
+        )}
+
+        {(isAdmin || ((canManage || isCreator) && sel.status !== 'completed')) && (
+          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(sel.id)}>
+            Delete
+          </button>
+        )}
+
+        <button className="btn btn-secondary"
+          onClick={() => { setSelectedEvent(null); setShowReassignModal(false); }}
+          style={{ marginLeft: 'auto' }}>
+          Close
+        </button>
+      </div>
+      {/* ── End Fixed Footer ── */}
+
+    </div>
+  </div>
+)}
     </div>
   );
 }

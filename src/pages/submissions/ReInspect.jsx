@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getSubmission, getRounds, submitRound, submitRoundDecision } from '../../api/api';
+import { RoundTimeline } from '../../components/RoundTimeline';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getSubmission, getRounds, submitRound, submitRoundDecision, updateScheduleStatus } from '../../api/api';
 
@@ -49,9 +52,6 @@ export default function ReInspect() {
     remarksByQuestion[String(ar.question_id)] = ar.remark;
   });
 
-  const attendeeImages = prevRound?.attendee_images ?? [];
-  const prevReviewDeadline = prevRound?.review_deadline ?? null;
-
   // Collect full round history for the history panel (oldest first, exclude current)
   const roundHistory = [...(rounds.rounds ?? [])]
     .filter(r => r.round_number < rounds.current_round)
@@ -94,10 +94,11 @@ export default function ReInspect() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (files.length === 0) {
-      setError('Please upload at least one image before submitting.');
-      return;
-    }
+    console.log('submitting decision:', {
+  decision,
+  reviewNotes,
+  reviewDeadline,
+});
 
     if (!decision) {
       setError('Please approve or reject before submitting.');
@@ -123,7 +124,7 @@ export default function ReInspect() {
         roundData.round_id,
         decision,
         reviewNotes,
-        decision === 'rejected' ? reviewDeadline : null,
+       reviewDeadline || null 
       );
 
       navigate(`/submissions/${uuid}`);
@@ -156,124 +157,11 @@ export default function ReInspect() {
         </div>
       </div>
 
-      {/* ── Attendee Review Summary ── */}
-      {prevRound && (
-        <div style={{
-          marginBottom: '1.5rem', borderRadius: 8,
-          border: '1px solid #e9d5ff', overflow: 'hidden',
-        }}>
-          <div style={{
-            padding: '0.75rem 1rem', background: '#fdf4ff',
-            borderBottom: '1px solid #e9d5ff',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span style={{ fontWeight: 600, color: '#6b21a8', fontSize: '0.9rem' }}>
-              Attendee Review — Round {prevRound.round_number}
-            </span>
-            {prevReviewDeadline && (
-              <span style={{ fontSize: '0.78rem', color: '#7c3aed' }}>
-                Deadline was: <strong>{new Date(prevReviewDeadline).toLocaleString()}</strong>
-              </span>
-            )}
-          </div>
-
-          <div style={{ padding: '1rem', background: '#fff' }}>
-            {/* Inspector's rejection notes */}
-            {prevRound.review_notes && (
-              <div style={{ marginBottom: '0.75rem', fontSize: '0.875rem' }}>
-                <span style={{ fontWeight: 600, color: '#374151' }}>Your rejection notes: </span>
-                <span style={{ color: '#6b7280' }}>{prevRound.review_notes}</span>
-              </div>
-            )}
-
-            {/* Attendee remarks summary */}
-            {prevRound.attendee_remarks?.length > 0 ? (
-              <div style={{ marginBottom: attendeeImages.length > 0 ? '0.75rem' : 0 }}>
-                <p style={{ fontWeight: 600, fontSize: '0.8rem', color: '#374151', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Attendee Remarks
-                </p>
-                {prevRound.attendee_remarks.map(ar => (
-                  <div key={ar.question_id} style={{
-                    padding: '0.5rem 0.75rem', marginBottom: '0.4rem',
-                    background: '#fdf4ff', border: '1px solid #e9d5ff',
-                    borderRadius: 6, fontSize: '0.83rem',
-                  }}>
-                    <span style={{ fontWeight: 600, color: '#6b21a8' }}>
-                      {labelMap?.[ar.question_id] || `Q#${ar.question_id}`}:
-                    </span>{' '}
-                    <span style={{ color: '#374151' }}>{ar.remark}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: '0 0 0.5rem' }}>
-                No remarks provided by the attendee.
-              </p>
-            )}
-
-            {/* Attendee evidence images */}
-            {attendeeImages.length > 0 && (
-              <div>
-                <p style={{ fontWeight: 600, fontSize: '0.8rem', color: '#374151', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Attendee Evidence Images
-                </p>
-                <div className="preview-grid">
-                  {attendeeImages.map((src, i) => (
-                    <div key={i} className="preview-item">
-                      <img src={src} alt={`Evidence ${i + 1}`} style={{ cursor: 'pointer' }}
-                        onClick={() => window.open(src, '_blank')} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* ── Round History ── */}
-      {roundHistory.length > 1 && (
-        <details style={{ marginBottom: '1.5rem' }}>
-          <summary style={{
-            cursor: 'pointer', padding: '0.65rem 1rem',
-            background: 'var(--bg)', border: '1px solid var(--border)',
-            borderRadius: 8, fontWeight: 600, fontSize: '0.875rem',
-            color: 'var(--muted)', listStyle: 'none',
-          }}>
-            Round History ({roundHistory.length} previous rounds)
-          </summary>
-          <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
-            {roundHistory.map(r => (
-              <div key={r.id} style={{
-                padding: '0.75rem 1rem',
-                borderBottom: '1px solid var(--border)',
-                fontSize: '0.875rem',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                  <span style={{ fontWeight: 600 }}>Round {r.round_number}</span>
-                  <span style={{
-                    fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4,
-                    background: r.status === 'approved' ? '#f0fdf4' : r.status === 'rejected' ? '#fef2f2' : '#fefce8',
-                    color: r.status === 'approved' ? '#166534' : r.status === 'rejected' ? '#991b1b' : '#854d0e',
-                    border: `1px solid ${r.status === 'approved' ? '#86efac' : r.status === 'rejected' ? '#fca5a5' : '#fde047'}`,
-                  }}>
-                    {r.status ?? 'pending'}
-                  </span>
-                </div>
-                {r.review_notes && (
-                  <p style={{ margin: '0 0 0.25rem', color: '#6b7280' }}>
-                    Inspector: {r.review_notes}
-                  </p>
-                )}
-                {r.attendee_remarks?.length > 0 && (
-                  <p style={{ margin: 0, color: '#7c3aed', fontSize: '0.8rem' }}>
-                    Attendee left {r.attendee_remarks.length} remark{r.attendee_remarks.length !== 1 ? 's' : ''}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </details>
+      {roundHistory.length > 0 && (
+        <div className="detail-section">
+          <RoundTimeline rounds={roundHistory} labelMap={data.labelMap} />
+        </div>
       )}
 
       <div style={{
