@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { getFormStep } from '../api/api';
+import { getFormStep, getMySubmissionForForm, getScheduleById } from '../api/api';
+import { useAuth } from '../context/AuthContext';
 
 function safeOptions(raw) {
   if (!raw) return [];
@@ -9,19 +10,47 @@ function safeOptions(raw) {
 }
 
 export default function Form() {
-  const { slug }                    = useParams();
-  const [searchParams]              = useSearchParams();
-  const navigate                    = useNavigate();
-  const [data, setData]             = useState(null);
-  const [answers, setAnswers]       = useState({});
-  const group                       = parseInt(searchParams.get('group')) || 1;
+  const { slug }                = useParams();
+  const [searchParams]          = useSearchParams();
+  const navigate                = useNavigate();
+  const { role }                = useAuth();
+  const [data, setData]         = useState(null);
+  const [answers, setAnswers]   = useState({});
+  const [existing, setExisting] = useState(null);
+  const [checking, setChecking] = useState(true);
+  const [schedule, setSchedule] = useState(null);
+
+  const locationSlug = searchParams.get('location');
+  const scheduleId   = searchParams.get('schedule_id');
 
   useEffect(() => {
-    // Restore answers from sessionStorage
-    const saved = sessionStorage.getItem(`answers_${slug}`);
-    if (saved) setAnswers(JSON.parse(saved));
-    getFormStep(slug, group).then(r => setData(r.data));
-  }, [slug, group]);
+    setChecking(true);
+    getMySubmissionForForm(slug, locationSlug, scheduleId)
+      .then(r => {
+        if (r.data?.uuid) {
+          setExisting(r.data);
+          setAnswers(r.data.answers || {});
+        } else {
+          const saved = sessionStorage.getItem(`answers_${slug}`);
+          if (saved) setAnswers(JSON.parse(saved));
+        }
+      })
+      .catch(() => {
+        const saved = sessionStorage.getItem(`answers_${slug}`);
+        if (saved) setAnswers(JSON.parse(saved));
+      })
+      .finally(() => setChecking(false));
+  }, [slug, locationSlug, scheduleId]);
+
+  useEffect(() => {
+    getFormStep(slug, 1).then(r => setData(r.data));
+  }, [slug]);
+
+  useEffect(() => {
+    if (scheduleId) {
+      getScheduleById(scheduleId).then(r => setSchedule(r.data)).catch(() => {});
+    }
+  }, [scheduleId]);
 
   function handleChange(qId, value) {
     setAnswers(prev => ({ ...prev, [String(qId)]: value }));
@@ -30,106 +59,146 @@ export default function Form() {
   function isVisible(q) {
     if (!q.conditional_on_question_id || !q.conditional_on_value) return true;
     const val = answers[String(q.conditional_on_question_id)] || '';
-    return val.toLowerCase() === q.conditional_on_value.toLowerCase();
+    return val.trim().toLowerCase() === q.conditional_on_value.trim().toLowerCase();
   }
 
-  function handleSubmit(e) {
+  function handleNext(e) {
     e.preventDefault();
-    // Save answers to sessionStorage to persist across steps
     sessionStorage.setItem(`answers_${slug}`, JSON.stringify(answers));
+    const params = new URLSearchParams();
+    if (locationSlug) params.set('location', locationSlug);
+    if (scheduleId)   params.set('schedule_id', scheduleId);
+    navigate(`/form/${slug}/images?${params.toString()}`);
+  }
 
-    if (data.isLastGroup) {
-      navigate(`/form/${slug}/images`);
-    } else {
-      navigate(`/form/${slug}?group=${group + 1}`);
+  if (checking || !data) return <p>Loading...</p>;
+
+  const isReadOnly = !!existing;
+
+  if (role === 'inspector' && schedule && !isReadOnly) {
+    const now = Date.now();
+    if (now < new Date(schedule.scheduled_at).getTime()) {
+      return (
+        <div className="text-center py-4">
+          <p className="fw-semibold mb-1">Inspection not yet available</p>
+          <p className="text-muted small">
+            This inspection opens on {new Date(schedule.scheduled_at).toLocaleString()}.
+          </p>
+        </div>
+      );
+    }
+    if (schedule.submission_deadline && now > new Date(schedule.submission_deadline).getTime()) {
+      return (
+        <div className="text-center py-4">
+          <p className="fw-semibold mb-1">Submission deadline has passed</p>
+          <p className="text-muted small">
+            The deadline was {new Date(schedule.submission_deadline).toLocaleString()}.
+            Contact your coordinator to extend the deadline.
+          </p>
+        </div>
+      );
     }
   }
 
-  if (!data) return <p>Loading...</p>;
-
   return (
     <div>
-      <div className="form-header">
-        <h1>{data.category.name}</h1>
-        <div className="step-indicator">
-          {Array.from({ length: data.maxGroup }, (_, i) => (
-            <div key={i} className={`step-dot ${i + 1 < group ? 'done' : i + 1 === group ? 'active' : ''}`}>
-              {i + 1}
-            </div>
-          ))}
-        </div>
+      <div className="mb-4">
+        <h1 className="h3 fw-bold">{data.category.name}</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="question-form">
-        {data.questions.filter(isVisible).map(q => (
-          <div key={q.id} className="question-block">
-            <label className="question-label">
-              {q.question_text}
-              {q.is_required && <span className="required">*</span>}
-            </label>
-
-            {q.field_type === 'text' && (
-              <input className="form-input" type="text"
-                     value={answers[String(q.id)] || ''}
-                     onChange={e => handleChange(q.id, e.target.value)}
-                     required={q.is_required} />
-            )}
-            {q.field_type === 'textarea' && (
-              <textarea className="form-input form-textarea"
-                        value={answers[String(q.id)] || ''}
-                        onChange={e => handleChange(q.id, e.target.value)}
-                        required={q.is_required} />
-            )}
-            {q.field_type === 'number' && (
-              <input className="form-input" type="number"
-                     value={answers[String(q.id)] || ''}
-                     onChange={e => handleChange(q.id, e.target.value)}
-                     required={q.is_required} />
-            )}
-            {q.field_type === 'yesno' && (
-              <div className="radio-group">
-                {['Yes', 'No'].map(opt => (
-                  <label key={opt} className="radio-option">
-                    <input type="radio" name={`q_${q.id}`} value={opt}
-                           checked={answers[String(q.id)] === opt}
-                           onChange={() => handleChange(q.id, opt)}
-                           required={q.is_required} /> {opt}
-                  </label>
-                ))}
-              </div>
-            )}
-            {q.field_type === 'select' && (
-              <select className="form-input"
-                      value={answers[String(q.id)] || ''}
-                      onChange={e => handleChange(q.id, e.target.value)}
-                      required={q.is_required}>
-                <option value="">-- Select --</option>
-                {safeOptions(q.options).map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            )}
-            {q.field_type === 'radio' && (
-              <div className="radio-group">
-                {safeOptions(q.options).map(opt => (
-                  <label key={opt} className="radio-option">
-                    <input type="radio" name={`q_${q.id}`} value={opt}
-                           checked={answers[String(q.id)] === opt}
-                           onChange={() => handleChange(q.id, opt)}
-                           required={q.is_required} /> {opt}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary">
-            {data.isLastGroup ? 'Next: Upload Images' : 'Next'}
-          </button>
+      {isReadOnly && (
+        <div className="alert alert-success">
+          You already submitted this form on{' '}
+          <strong>{new Date(existing.submitted_at).toLocaleString()}</strong>.
+          This is a read-only view of your responses.
         </div>
+      )}
+
+      <form onSubmit={isReadOnly ? e => e.preventDefault() : handleNext}
+            className="d-flex flex-column gap-3">
+        {data.questions.map(q => {
+          const visible = isVisible(q);
+          return (
+            <div key={q.id} className="card card-body" style={{ display: visible ? 'block' : 'none' }}>
+              <label className="form-label fw-semibold">
+                {q.question_text}
+                {q.is_required && !isReadOnly && <span className="text-danger ms-1">*</span>}
+              </label>
+
+              {q.field_type === 'text' && (
+                <input className="form-control" type="text"
+                  value={answers[String(q.id)] || ''}
+                  onChange={e => handleChange(q.id, e.target.value)}
+                  required={visible && q.is_required && !isReadOnly}
+                  disabled={isReadOnly} />
+              )}
+              {q.field_type === 'textarea' && (
+                <textarea className="form-control"
+                  value={answers[String(q.id)] || ''}
+                  onChange={e => handleChange(q.id, e.target.value)}
+                  required={visible && q.is_required && !isReadOnly}
+                  disabled={isReadOnly} />
+              )}
+              {q.field_type === 'number' && (
+                <input className="form-control" type="number"
+                  value={answers[String(q.id)] || ''}
+                  onChange={e => handleChange(q.id, e.target.value)}
+                  required={visible && q.is_required && !isReadOnly}
+                  disabled={isReadOnly} />
+              )}
+              {q.field_type === 'yesno' && (
+                <div className="d-flex gap-3 flex-wrap">
+                  {['Yes', 'No'].map(opt => (
+                    <label key={opt} className="form-check-label d-flex align-items-center gap-1">
+                      <input type="radio" name={`q_${q.id}`} value={opt}
+                        checked={answers[String(q.id)] === opt}
+                        onChange={() => !isReadOnly && handleChange(q.id, opt)}
+                        required={visible && q.is_required && !isReadOnly}
+                        disabled={isReadOnly} /> {opt}
+                    </label>
+                  ))}
+                </div>
+              )}
+              {q.field_type === 'select' && (
+                <select className="form-select"
+                  value={answers[String(q.id)] || ''}
+                  onChange={e => handleChange(q.id, e.target.value)}
+                  required={visible && q.is_required && !isReadOnly}
+                  disabled={isReadOnly}>
+                  <option value="">-- Select --</option>
+                  {safeOptions(q.options).map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              )}
+              {q.field_type === 'radio' && (
+                <div className="d-flex gap-3 flex-wrap">
+                  {safeOptions(q.options).map(opt => (
+                    <label key={opt} className="form-check-label d-flex align-items-center gap-1">
+                      <input type="radio" name={`q_${q.id}`} value={opt}
+                        checked={answers[String(q.id)] === opt}
+                        onChange={() => !isReadOnly && handleChange(q.id, opt)}
+                        required={visible && q.is_required && !isReadOnly}
+                        disabled={isReadOnly} /> {opt}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {!isReadOnly && (
+          <div className="d-flex gap-3 flex-wrap mt-2">
+            <button type="submit" className="btn btn-primary">
+              Next: Upload Images
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );
 }
+
+
+

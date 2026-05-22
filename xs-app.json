@@ -1,0 +1,23 @@
+{
+  "welcomeFile": "/index.html",
+  "routes": [
+    {
+      "source": "^/api/(.*)$",
+      "target": "/api/$1",
+      "destination": "inspectpro-backend",
+      "csrfProtection": false,
+      "authenticationType": "none"
+    },
+    {
+      "source": "^(.+\\.[^/]+)$",
+      "target": "$1",
+      "localDir": "dist"
+    },
+    {
+      "source": "^(.*)$",
+      "target": "/index.html",
+      "localDir": "dist",
+      "cacheControl": "no-cache, no-store, must-revalidate"
+    }
+  ]
+}
