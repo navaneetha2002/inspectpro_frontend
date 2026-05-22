@@ -63,38 +63,25 @@ function extractInspectionTitle(message, title) {
   }
   return title || null;
 }
-// Extract submission UUID from action_url like "/submissions/91886407-788f-4abf-93b9-245975e3f159"
-function getSubmissionId(n) {
+// Resolve a notification to its submission UUID.
+// Handles both /submissions/UUID and /schedules/ID action URLs.
+function getSubmissionId(n, scheduleIdToUuid = {}) {
   if (!n.action_url) return null;
-  const match = n.action_url.match(/\/submissions\/([\w-]+)/);
-  return match ? match[1] : null;
-}
-
-// Build a Set of submission UUIDs where any notification has "approved" in the title
-function getApprovedSubmissionIds(notifications) {
-  const approvedIds = new Set();
-  notifications.forEach(n => {
-    const title = (n.title || '').toLowerCase();
-    const submissionId = getSubmissionId(n);
-    if (submissionId && title.includes('approved')) {
-      approvedIds.add(submissionId);
-    }
-  });
-  return approvedIds;
+  const subMatch = n.action_url.match(/\/submissions\/([\w-]+)/);
+  if (subMatch) return subMatch[1];
+  const schedMatch = n.action_url.match(/\/schedules\/(\d+)/);
+  if (schedMatch) return scheduleIdToUuid[schedMatch[1]] || null;
+  return null;
 }
 
 export default function Inbox() {
-  const { notifications, unreadCount, markRead, markAllRead, submissionTitleMap } = useNotifications();
+  const { notifications, unreadCount, markRead, markAllRead, submissionTitleMap, approvedSubmissionIds, scheduleIdToUuid } = useNotifications();
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // Build approved submission IDs once from all notifications
-  const approvedSubmissionIds = getApprovedSubmissionIds(notifications);
-
-  // A notification is "completed" if its submission UUID is in the approved set
+  // A notification is "completed" if its submission is approved
   function isCompleted(n) {
-    const submissionId = getSubmissionId(n);
-    if (submissionId && approvedSubmissionIds.has(submissionId)) return true;
-    return false;
+    const submissionId = getSubmissionId(n, scheduleIdToUuid);
+    return submissionId ? approvedSubmissionIds.has(submissionId) : false;
   }
 
   const filtered    = showCompleted ? notifications.filter(isCompleted) : notifications.filter(n => !isCompleted(n));
