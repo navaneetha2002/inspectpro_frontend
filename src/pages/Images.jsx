@@ -139,7 +139,7 @@ export default function Images() {
 
   return (
     <div>
-      <h1>Upload Images</h1>
+      <h1>Upload Images <span style={{ color: 'var(--danger)' }}>*</span></h1>
 
       <div
         className="upload-area"
