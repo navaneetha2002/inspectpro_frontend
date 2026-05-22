@@ -1,0 +1,10 @@
+applications:
+  - name: inspectpro-frontend
+    memory: 128M
+    buildpacks:
+      - nodejs_buildpack
+    path: .
+    env:
+      NODE_ENV: production
+      destinations: '[{"name":"inspectpro-backend","url":"https://inspectpro-backend.cfapps.eu10-004.hana.ondemand.com","forwardAuthToken":false}]'
+      APPROUTER_EXTENSIONS_FOLDER: ""
