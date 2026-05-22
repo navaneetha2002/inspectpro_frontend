@@ -65,7 +65,7 @@ function AppLayout() {
     <div className="app-layout">
       <Sidebar />
       <div className={`main-content${isAuthenticated ? '' : ' full-width'}`}>
-        <div className="container">
+        <div className="app-container">
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
@@ -132,3 +132,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+

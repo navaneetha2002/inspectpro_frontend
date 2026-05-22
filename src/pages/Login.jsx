@@ -62,10 +62,7 @@ export default function Login() {
       {/* Left panel — animation */}
       <div className="login-left">
         <div className="login-left-content">
-          <LottiePlayer
-            animationData={loginAnimationData}
-            className="login-lottie"
-          />
+          <LottiePlayer animationData={loginAnimationData} className="login-lottie" />
           <h1 className="login-brand">InspectPro</h1>
           <p className="login-tagline">Streamline your workplace inspections</p>
         </div>
@@ -73,30 +70,36 @@ export default function Login() {
 
       {/* Right panel — form */}
       <div className="login-right">
-        <form className="login-form" onSubmit={handleSubmit}>
-          <h2>Sign In</h2>
-          <p className="login-subtitle">Welcome back! Please enter your credentials.</p>
-          {error && <p className="login-error">{error}</p>}
-          <label>
-            Username
+        <form className="login-card" onSubmit={handleSubmit}>
+          <h2 className="h4 fw-bold text-center mb-1">Sign In</h2>
+          <p className="text-center text-muted small mb-3">Welcome back! Please enter your credentials.</p>
+
+          {error && <div className="alert alert-danger py-2">{error}</div>}
+
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Username</label>
             <input
               type="text"
+              className="form-control"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
               autoFocus
             />
-          </label>
-          <label>
-            Password
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Password</label>
             <input
               type="password"
+              className="form-control"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-          </label>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          </div>
+
+          <button type="submit" className="btn btn-primary w-100 mt-2" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
@@ -104,3 +107,4 @@ export default function Login() {
     </div>
   );
 }
+

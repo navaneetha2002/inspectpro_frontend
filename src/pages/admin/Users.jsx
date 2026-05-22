@@ -2,11 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { getUsers, register, deleteUser, getRolesWithPerms, getLocations } from '../../api/api';
 import ConfirmModal from '../../components/ConfirmModal';
-import { useAuth } from '../../context/AuthContext'; // adjust path to match your project
+import { useAuth } from '../../context/AuthContext';
 
 const REQUIRED_COLS = ['username', 'email', 'password', 'location', 'role'];
 
-// Aliases allow any reasonable column header the user might type
 const COL_ALIASES = {
   username: ['username', 'user name', 'user', 'name', 'login'],
   email:    ['email', 'e-mail', 'email address', 'emailaddress', 'mail'],
@@ -35,35 +34,27 @@ function downloadTemplate() {
 }
 
 export default function Users() {
-  // ── Auth ─────────────────────────────────────────────────────
-  const { user: currentUser } = useAuth(); // expects { role, location, ... }
+  const { user: currentUser } = useAuth();
   const isLocalAdmin = currentUser?.role === 'local_admin';
 
-  // ── State ────────────────────────────────────────────────────
   const [users, setUsers]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  // Single-user form — pre-fill location for local_admin
   const [form, setForm] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirm: '',
+    username: '', email: '', password: '', confirm: '',
     location: isLocalAdmin ? (currentUser?.location ?? '') : '',
     role: '',
   });
 
-  const [roles, setRoles]           = useState([]);
-  const [locations, setLocations]   = useState([]);
-  const [formError, setFormError]   = useState('');
+  const [roles, setRoles]             = useState([]);
+  const [locations, setLocations]     = useState([]);
+  const [formError, setFormError]     = useState('');
   const [formSuccess, setFormSuccess] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const [deletingId,  setDeletingId]  = useState(null);
+  const [submitting, setSubmitting]   = useState(false);
+  const [deletingId, setDeletingId]   = useState(null);
   const [confirmUser, setConfirmUser] = useState(null);
 
-  // Bulk upload
   const fileInputRef                    = useRef(null);
   const [preview, setPreview]           = useState(null);
   const [bulkProgress, setBulkProgress] = useState(null);
@@ -71,31 +62,16 @@ export default function Users() {
 
   useEffect(() => {
     fetchUsers();
-    getRolesWithPerms()
-      .then(res => setRoles(Array.isArray(res.data) ? res.data : []))
-      .catch(() => {});
-    getLocations()
-      .then(res => setLocations(Array.isArray(res.data) ? res.data : []))
-      .catch(() => {});
+    getRolesWithPerms().then(res => setRoles(Array.isArray(res.data) ? res.data : [])).catch(() => {});
+    getLocations().then(res => setLocations(Array.isArray(res.data) ? res.data : [])).catch(() => {});
   }, []);
 
   async function fetchUsers() {
     try {
       const res = await getUsers();
-      if (res.data?.length) console.log('[Users] sample user object:', res.data[0]);
       const allUsers = Array.isArray(res.data) ? res.data : [];
-
-      // local_admin only sees users from their own location
-      setUsers(
-        isLocalAdmin
-          ? allUsers.filter(u => u.location === currentUser?.location)
-          : allUsers
-      );
-    } catch {
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
+      setUsers(isLocalAdmin ? allUsers.filter(u => u.location === currentUser?.location) : allUsers);
+    } catch { setUsers([]); } finally { setLoading(false); }
   }
 
   async function confirmDelete() {
@@ -108,12 +84,9 @@ export default function Users() {
       setUsers(prev => prev.filter(u => (u.id || u._id) !== id));
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete user.');
-    } finally {
-      setDeletingId(null);
-    }
+    } finally { setDeletingId(null); }
   }
 
-  // ── Single user ──────────────────────────────────────────────
   function handleChange(e) {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
@@ -121,104 +94,51 @@ export default function Users() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setFormError('');
-    setFormSuccess('');
-
-    if (form.password !== form.confirm) {
-      setFormError('Passwords do not match.');
-      return;
-    }
-
-    // local_admin always registers under their own location
+    setFormError(''); setFormSuccess('');
+    if (form.password !== form.confirm) { setFormError('Passwords do not match.'); return; }
     const locationToSubmit = isLocalAdmin ? (currentUser?.location ?? '') : form.location;
-
     setSubmitting(true);
     try {
-      const res = await register(form.username, form.email, form.password, locationToSubmit, form.role);
-      console.log('[register] response:', res.data);
+      await register(form.username, form.email, form.password, locationToSubmit, form.role);
       setFormSuccess(`User "${form.username}" created successfully.`);
-      setForm({
-        username: '',
-        email: '',
-        password: '',
-        confirm: '',
-        location: isLocalAdmin ? (currentUser?.location ?? '') : '',
-        role: '',
-      });
+      setForm({ username: '', email: '', password: '', confirm: '', location: isLocalAdmin ? (currentUser?.location ?? '') : '', role: '' });
       setShowForm(false);
       fetchUsers();
     } catch (err) {
       setFormError(err.response?.data?.error || err.response?.data?.message || 'Registration failed. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   }
 
-  // ── Bulk upload ───────────────────────────────────────────────
   function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-
     const reader = new FileReader();
-
-    reader.onerror = () => {
-      setPreview({ rows: [], fileName: file.name, parseError: 'Could not read the file from disk.' });
-      setBulkProgress(null);
-    };
-
+    reader.onerror = () => { setPreview({ rows: [], fileName: file.name, parseError: 'Could not read the file.' }); setBulkProgress(null); };
     reader.onload = (ev) => {
       try {
         const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-
-        if (!wb.SheetNames.length) {
-          setPreview({ rows: [], fileName: file.name, parseError: 'No sheets found in this file.' });
-          setBulkProgress(null);
-          return;
-        }
-
+        if (!wb.SheetNames.length) { setPreview({ rows: [], fileName: file.name, parseError: 'No sheets found.' }); return; }
         const ws = wb.Sheets[wb.SheetNames[0]];
         const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-
         const headerIdx = allRows.findIndex(row => row.some(cell => String(cell).trim() !== ''));
-        if (headerIdx === -1) {
-          setPreview({ rows: [], fileName: file.name, parseError: 'Sheet is empty.' });
-          setBulkProgress(null);
-          return;
-        }
-
+        if (headerIdx === -1) { setPreview({ rows: [], fileName: file.name, parseError: 'Sheet is empty.' }); return; }
         const colMap = allRows[headerIdx].map(h => resolveField(String(h)));
-        const dataRows = allRows
-          .slice(headerIdx + 1)
-          .filter(row => row.some(cell => String(cell).trim() !== ''));
-
+        const dataRows = allRows.slice(headerIdx + 1).filter(row => row.some(cell => String(cell).trim() !== ''));
         const rows = dataRows.map(row => {
           const norm = {};
-          colMap.forEach((field, idx) => {
-            norm[field] = String(row[idx] ?? '').trim();
-          });
-
+          colMap.forEach((field, idx) => { norm[field] = String(row[idx] ?? '').trim(); });
           norm._errors = validateRow(norm);
           return norm;
         });
-
         const detectedFields = new Set(colMap);
-
-        
-       const missingCols = REQUIRED_COLS.filter(c => !detectedFields.has(c));
-
-        // After
+        const missingCols = REQUIRED_COLS.filter(c => !detectedFields.has(c));
         let locationError = null;
         if (isLocalAdmin) {
           const adminLoc = (currentUser?.location ?? '').trim().toLowerCase();
-          const mismatch = rows.find(
-            r => r.location.trim().toLowerCase() !== adminLoc
-          );
-          if (mismatch) {
-            locationError = `All rows must have location "${currentUser?.location}". Found "${mismatch.location}" — fix your sheet and re-upload.`;
-          }
+          const mismatch = rows.find(r => r.location.trim().toLowerCase() !== adminLoc);
+          if (mismatch) locationError = `All rows must have location "${currentUser?.location}". Found "${mismatch.location}".`;
         }
-
         setPreview({ rows, fileName: file.name, missingCols, locationError });
         setBulkProgress(null);
       } catch (err) {
@@ -226,469 +146,252 @@ export default function Users() {
         setBulkProgress(null);
       }
     };
-
     reader.readAsArrayBuffer(file);
   }
 
   async function handleBulkCreate() {
-  console.log('[bulk] preview:', preview);
-  console.log('[bulk] validRows:', preview?.rows.filter(r => r._errors.length === 0));
-  if (!preview) return;
-  const validRows = preview.rows.filter(r => r._errors.length === 0);
-  if (validRows.length === 0) return;
-
-  setBulkRunning(true);
-  setBulkProgress({ done: 0, total: validRows.length, results: [] });
-
-  const results = [];
-  for (let i = 0; i < validRows.length; i++) {
-    const row = validRows[i];
-
-    try {
-      console.log('[bulk] registering:', row.username, row.email, row.password, row.location, row.role);
-      await register(row.username, row.email, row.password, row.location, row.role);
-      results.push({ ok: true, username: row.username });
-    } catch (err) {
-      console.error('[bulk] error for', row.username, err.response?.status, err.response?.data, err.message, err);
-      results.push({ ok: false, username: row.username, msg: err.response?.data?.error || err.response?.data?.message || 'Failed' });
+    if (!preview) return;
+    const validRows = preview.rows.filter(r => r._errors.length === 0);
+    if (validRows.length === 0) return;
+    setBulkRunning(true);
+    setBulkProgress({ done: 0, total: validRows.length, results: [] });
+    const results = [];
+    for (let i = 0; i < validRows.length; i++) {
+      const row = validRows[i];
+      try {
+        await register(row.username, row.email, row.password, row.location, row.role);
+        results.push({ ok: true, username: row.username });
+      } catch (err) {
+        results.push({ ok: false, username: row.username, msg: err.response?.data?.error || err.response?.data?.message || 'Failed' });
+      }
+      setBulkProgress({ done: i + 1, total: validRows.length, results: [...results] });
     }
-    setBulkProgress({ done: i + 1, total: validRows.length, results: [...results] });
+    setBulkRunning(false);
+    fetchUsers();
   }
 
-  setBulkRunning(false);
-  fetchUsers();
-}
-
-  function clearBulk() {
-    setPreview(null);
-    setBulkProgress(null);
-  }
+  function clearBulk() { setPreview(null); setBulkProgress(null); }
 
   const validCount   = preview ? preview.rows.filter(r => r._errors.length === 0).length : 0;
   const invalidCount = preview ? preview.rows.length - validCount : 0;
 
   return (
     <div>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".xlsx,.xls,.csv"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
+      <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv"
+        style={{ display: 'none' }} onChange={handleFileChange} />
 
-      <div className="sticky-header">
-        <nav className="breadcrumb">
-          <span className="breadcrumb-current">Users Admin</span>
+      <div className="sticky-top bg-white border-bottom py-2 mb-3">
+        <nav aria-label="breadcrumb">
+          <ol className="breadcrumb mb-1">
+            <li className="breadcrumb-item active">Users Admin</li>
+          </ol>
         </nav>
-        <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
-          <h1>
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0">
+          <h1 className="h4 fw-bold mb-0">
             Manage Users
-            {/* Show location badge for local_admin so it's clear whose scope they're in */}
             {isLocalAdmin && currentUser?.location && (
-              <span
-                style={{
-                  marginLeft: '0.75rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  background: 'var(--primary-light, #dbeafe)',
-                  color: 'var(--primary, #2563eb)',
-                  padding: '0.2rem 0.6rem',
-                  borderRadius: '999px',
-                  verticalAlign: 'middle',
-                }}
-              >
+              <span className="badge bg-primary-subtle text-primary ms-2 fw-normal small">
                 {currentUser.location}
               </span>
             )}
           </h1>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {!showForm && !preview && (
-              <>
-                <button className="btn btn-secondary" onClick={downloadTemplate}>
-                  Download Template
-                </button>
-                <button className="btn btn-secondary" onClick={() => fileInputRef.current.click()}>
-                  Upload Excel
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => { setFormError(''); setShowForm(true); }}
-                >
-                  + Add User
-                </button>
-              </>
-            )}
-          </div>
+          {!showForm && !preview && (
+            <div className="d-flex gap-2">
+              <button className="btn btn-secondary btn-sm" onClick={downloadTemplate}>Download Template</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => fileInputRef.current.click()}>Upload Excel</button>
+              <button className="btn btn-primary btn-sm" onClick={() => { setFormError(''); setShowForm(true); }}>
+                + Add User
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {formSuccess && <p className="login-success">{formSuccess}</p>}
+      {formSuccess && <div className="alert alert-success py-2">{formSuccess}</div>}
 
-      {/* ── Single-user form ── */}
+      {/* Single-user form */}
       {showForm && (
-        <form className="admin-form" onSubmit={handleSubmit} style={{ marginBottom: '2rem' }}>
-          <h2 style={{ marginBottom: '1rem' }}>New User</h2>
-          {formError && <p className="login-error">{formError}</p>}
+        <form className="card card-body mb-4" onSubmit={handleSubmit}>
+          <h2 className="h5 fw-bold mb-3">New User</h2>
+          {formError && <div className="alert alert-danger py-2">{formError}</div>}
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Username <span className="required">*</span></label>
-              <input
-                name="username"
-                className="form-input"
-                value={form.username}
-                onChange={handleChange}
-                required
-                autoFocus
-              />
+          <div className="row g-3 mb-3">
+            <div className="col-md-6">
+              <label className="form-label fw-semibold">Username <span className="text-danger">*</span></label>
+              <input name="username" className="form-control" value={form.username}
+                onChange={handleChange} required autoFocus />
             </div>
-            <div className="form-group">
-              <label>Email <span className="required">*</span></label>
-              <input
-                name="email"
-                type="email"
-                className="form-input"
-                value={form.email}
-                onChange={handleChange}
-                required
-              />
+            <div className="col-md-6">
+              <label className="form-label fw-semibold">Email <span className="text-danger">*</span></label>
+              <input name="email" type="email" className="form-control" value={form.email}
+                onChange={handleChange} required />
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Location <span className="required">*</span></label>
+          <div className="row g-3 mb-3">
+            <div className="col-md-6">
+              <label className="form-label fw-semibold">Location <span className="text-danger">*</span></label>
               {isLocalAdmin ? (
-                // local_admin: locked to their own location, read-only
-                <input
-                  className="form-input"
-                  value={currentUser?.location ?? ''}
-                  readOnly
-                  style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }}
-                />
+                <input className="form-control" value={currentUser?.location ?? ''} readOnly
+                  style={{ background: '#f3f4f6', cursor: 'not-allowed' }} />
               ) : (
-                // global_admin: full dropdown
-                <select
-                  name="location"
-                  className="form-input"
-                  value={form.location}
-                  onChange={handleChange}
-                  required
-                >
+                <select name="location" className="form-select" value={form.location}
+                  onChange={handleChange} required>
                   <option value="">Select a location…</option>
-                  {locations.map(l => (
-                    <option key={l.id} value={l.name}>{l.name}</option>
-                  ))}
+                  {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
                 </select>
               )}
             </div>
-
-            <div className="form-group">
-              <label>Role <span className="required">*</span></label>
-              <select
-                name="role"
-                className="form-input"
-                value={form.role}
-                onChange={handleChange}
-                required
-              >
+            <div className="col-md-6">
+              <label className="form-label fw-semibold">Role <span className="text-danger">*</span></label>
+              <select name="role" className="form-select" value={form.role} onChange={handleChange} required>
                 <option value="">Select a role…</option>
                 {roles
-                  .filter(r => {
-                    // global_admin role is never assignable by anyone here
-                    if (r.role === 'global_admin') return false;
-                    // local_admin cannot assign another local_admin
-                    if (isLocalAdmin && r.role === 'local_admin') return false;
-                    return true;
-                  })
-                  .map(r => (
-                    <option key={r.role} value={r.role}>{r.role}</option>
-                  ))}
+                  .filter(r => r.role !== 'global_admin' && !(isLocalAdmin && r.role === 'local_admin'))
+                  .map(r => <option key={r.role} value={r.role}>{r.role}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Password <span className="required">*</span></label>
-              <input
-                name="password"
-                type="password"
-                className="form-input"
-                value={form.password}
-                onChange={handleChange}
-                required
-              />
+          <div className="row g-3 mb-3">
+            <div className="col-md-6">
+              <label className="form-label fw-semibold">Password <span className="text-danger">*</span></label>
+              <input name="password" type="password" className="form-control" value={form.password}
+                onChange={handleChange} required />
             </div>
-            <div className="form-group">
-              <label>Confirm Password <span className="required">*</span></label>
-              <input
-                name="confirm"
-                type="password"
-                className="form-input"
-                value={form.confirm}
-                onChange={handleChange}
-                required
-              />
+            <div className="col-md-6">
+              <label className="form-label fw-semibold">Confirm Password <span className="text-danger">*</span></label>
+              <input name="confirm" type="password" className="form-control" value={form.confirm}
+                onChange={handleChange} required />
             </div>
           </div>
 
-          <div className="form-actions">
+          <div className="d-flex gap-3 mt-2">
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? 'Creating…' : 'Create User'}
             </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => { setShowForm(false); setFormError(''); }}
-            >
+            <button type="button" className="btn btn-secondary"
+              onClick={() => { setShowForm(false); setFormError(''); }}>
               Cancel
             </button>
           </div>
         </form>
       )}
 
-      {/* ── Bulk upload preview ── */}
+      {/* Bulk upload preview */}
       {preview && (
-        <div className="admin-section" style={{ marginBottom: '2rem' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.75rem',
-            }}
-          >
+        <div className="mb-4">
+          <div className="d-flex justify-content-between align-items-center mb-2">
             <div>
               <strong>{preview.fileName}</strong>
-              <span style={{ marginLeft: '1rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
+              <span className="text-muted small ms-3">
                 {preview.rows.length} row{preview.rows.length !== 1 ? 's' : ''} parsed
-                {invalidCount > 0 && (
-                  <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>
-                    · {invalidCount} invalid (will be skipped)
-                  </span>
-                )}
+                {invalidCount > 0 && <span className="text-danger ms-2">· {invalidCount} invalid (will be skipped)</span>}
               </span>
-              {/* Show location lock notice for local_admin */}
               {isLocalAdmin && (
-                <span
-                  style={{
-                    marginLeft: '1rem',
-                    fontSize: '0.8rem',
-                    color: 'var(--primary, #2563eb)',
-                  }}
-                >
+                <span className="text-primary small ms-3">
                   Location locked to: <strong>{currentUser?.location}</strong>
                 </span>
               )}
             </div>
             {!bulkRunning && (
-              <button
-                className="btn btn-secondary"
-                style={{ fontSize: '0.8rem' }}
-                onClick={clearBulk}
-              >
-                Clear
-              </button>
+              <button className="btn btn-secondary btn-sm" onClick={clearBulk}>Clear</button>
             )}
           </div>
 
-          {preview.parseError && (
-            <p className="login-error">{preview.parseError}</p>
-          )}
-
-           {preview.locationError && (
-            <p className="login-error" style={{ marginBottom: '0.75rem' }}>
-              {preview.locationError}
-            </p>
-          )}
-
+          {preview.parseError    && <div className="alert alert-danger py-2">{preview.parseError}</div>}
+          {preview.locationError && <div className="alert alert-danger py-2">{preview.locationError}</div>}
           {preview.missingCols?.length > 0 && (
-            <p className="login-error" style={{ marginBottom: '0.75rem' }}>
-              Column{preview.missingCols.length > 1 ? 's' : ''} not found in sheet:{' '}
-              <strong>{preview.missingCols.join(', ')}</strong>.{' '}
-              Use "Download Template" to see the expected headers.
-            </p>
+            <div className="alert alert-danger py-2">
+              Column{preview.missingCols.length > 1 ? 's' : ''} not found:{' '}
+              <strong>{preview.missingCols.join(', ')}</strong>.
+            </div>
           )}
 
-          {!preview.locationError && <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Location</th>
-                  <th>Role</th>
-                  <th>Password</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.rows.map((row, i) => {
-                  const result = bulkProgress?.results.find(
-                    r => r.username === row.username && preview.rows.indexOf(row) === i
-                  );
-                  const isInvalid = row._errors.length > 0;
-                  return (
-                    <tr
-                      key={i}
-                      style={{
-                        opacity: isInvalid ? 0.55 : 1,
-                        background: result
-                          ? result.ok ? '#f0fdf4' : '#fef2f2'
-                          : undefined,
-                      }}
-                    >
-                      <td>{i + 1}</td>
-                      <td data-label="Username">
-                        {row.username || <em style={{ color: '#ef4444' }}>missing</em>}
-                      </td>
-                      <td data-label="Email">
-                        {row.email || <em style={{ color: '#ef4444' }}>missing</em>}
-                      </td>
-                      <td data-label="Location">
-                        {/* Always show the effective location (locked for local_admin) */}
-                        {isLocalAdmin
-                          ? <span style={{ color: 'var(--primary, #2563eb)' }}>{currentUser?.location}</span>
-                          : row.location || <em style={{ color: '#ef4444' }}>missing</em>
-                        }
-                      </td>
-                      <td data-label="Role">
-                        {row.role || <em style={{ color: '#ef4444' }}>missing</em>}
-                      </td>
-                      <td data-label="Password">
-                        {row.password
-                          ? '••••••'
-                          : <em style={{ color: '#ef4444' }}>missing</em>
-                        }
-                      </td>
-                      <td data-label="Status">
-                        {result ? (
-                          result.ok
-                            ? <span style={{ color: '#16a34a', fontWeight: 600 }}>Created</span>
-                            : <span style={{ color: '#ef4444' }} title={result.msg}>Failed</span>
-                        ) : isInvalid ? (
-                          <span style={{ color: '#f59e0b' }}>Missing: {row._errors.join(', ')}</span>
-                        ) : (
-                          <span style={{ color: 'var(--muted)' }}>Ready</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>}
-
-          {/* Progress bar */}
-          {!preview.locationError && !bulkProgress && (
-            <div style={{ marginBottom: '1rem' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '0.85rem',
-                  marginBottom: '0.25rem',
-                }}
-              >
-                <span>Creating users…</span>
-                <span>{bulkProgress.done} / {bulkProgress.total}</span>
-              </div>
-              <div
-                style={{
-                  background: '#e5e7eb',
-                  borderRadius: '4px',
-                  height: '8px',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${(bulkProgress.done / bulkProgress.total) * 100}%`,
-                    background: 'var(--primary, #2563eb)',
-                    height: '100%',
-                    transition: 'width 0.2s',
-                  }}
-                />
-              </div>
-              {bulkProgress.done === bulkProgress.total && (
-                <p style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
-                  <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                    {bulkProgress.results.filter(r => r.ok).length} created
-                  </span>
-                  {bulkProgress.results.filter(r => !r.ok).length > 0 && (
-                    <span style={{ color: '#ef4444', marginLeft: '0.75rem' }}>
-                      {bulkProgress.results.filter(r => !r.ok).length} failed
-                    </span>
-                  )}
-                </p>
-              )}
+          {!preview.locationError && (
+            <div className="table-responsive mb-3">
+              <table className="table table-bordered table-hover table-sm">
+                <thead className="table-light">
+                  <tr><th>#</th><th>Username</th><th>Email</th><th>Location</th><th>Role</th><th>Password</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {preview.rows.map((row, i) => {
+                    const result = bulkProgress?.results.find(r => r.username === row.username && preview.rows.indexOf(row) === i);
+                    const isInvalid = row._errors.length > 0;
+                    return (
+                      <tr key={i} style={{ opacity: isInvalid ? 0.55 : 1, background: result ? (result.ok ? '#f0fdf4' : '#fef2f2') : undefined }}>
+                        <td>{i + 1}</td>
+                        <td data-label="Username">{row.username || <em className="text-danger">missing</em>}</td>
+                        <td data-label="Email">{row.email || <em className="text-danger">missing</em>}</td>
+                        <td data-label="Location">
+                          {isLocalAdmin
+                            ? <span className="text-primary">{currentUser?.location}</span>
+                            : row.location || <em className="text-danger">missing</em>}
+                        </td>
+                        <td data-label="Role">{row.role || <em className="text-danger">missing</em>}</td>
+                        <td data-label="Password">{row.password ? '••••••' : <em className="text-danger">missing</em>}</td>
+                        <td data-label="Status">
+                          {result ? (
+                            result.ok
+                              ? <span className="text-success fw-semibold">Created</span>
+                              : <span className="text-danger" title={result.msg}>Failed</span>
+                          ) : isInvalid ? (
+                            <span className="text-warning">Missing: {row._errors.join(', ')}</span>
+                          ) : (
+                            <span className="text-muted">Ready</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
 
           {!preview.locationError && !bulkProgress && (
-            <button
-              className="btn btn-primary"
+            <button className="btn btn-primary"
               disabled={validCount === 0 || !!preview.locationError}
-              onClick={handleBulkCreate}
-            >
+              onClick={handleBulkCreate}>
               Create {validCount} User{validCount !== 1 ? 's' : ''}
             </button>
           )}
         </div>
       )}
 
-      {/* ── Users table ── */}
+      {/* Users table */}
       {!showForm && !preview && (
-        loading ? (
-          <p>Loading users…</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Location</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--muted)' }}>
-                    No users found.
-                  </td>
-                </tr>
-              ) : (
-                users.map(u => {
-                  const uid = u.id || u._id;
-                  return (
-                    <tr
-                      key={uid || u.username}
-                      style={{ opacity: deletingId === uid ? 0.4 : 1 }}
-                    >
-                      <td data-label="Username">{u.username}</td>
-                      <td data-label="Email">{u.email}</td>
-                      <td data-label="Role">{u.role || '—'}</td>
-                      <td data-label="Location">{u.location || u.city || '—'}</td>
-                      <td data-label="Actions" className="action-cell">
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => setConfirmUser(u)}
-                          disabled={deletingId === uid}
-                        >
-                          {deletingId === uid ? 'Deleting…' : 'Delete'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+        loading ? <p>Loading users…</p> : (
+          <div className="table-responsive">
+            <table className="table table-bordered table-hover table-sm">
+              <thead className="table-light">
+                <tr><th>Username</th><th>Email</th><th>Role</th><th>Location</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {users.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center text-muted">No users found.</td></tr>
+                ) : (
+                  users.map(u => {
+                    const uid = u.id || u._id;
+                    return (
+                      <tr key={uid || u.username} style={{ opacity: deletingId === uid ? 0.4 : 1 }}>
+                        <td data-label="Username">{u.username}</td>
+                        <td data-label="Email">{u.email}</td>
+                        <td data-label="Role">{u.role || '—'}</td>
+                        <td data-label="Location">{u.location || u.city || '—'}</td>
+                        <td data-label="Actions" className="d-flex gap-1">
+                          <button className="btn btn-sm btn-danger"
+                            onClick={() => setConfirmUser(u)} disabled={deletingId === uid}>
+                            {deletingId === uid ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         )
       )}
 
@@ -705,3 +408,4 @@ export default function Users() {
     </div>
   );
 }
+

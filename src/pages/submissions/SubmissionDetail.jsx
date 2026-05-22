@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getSubmission, deleteSubmission, getRounds } from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
@@ -8,10 +8,10 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { RoundTimeline, StatusBadge, AuthenticatedImage } from '../../components/RoundTimeline';
 
 export default function SubmissionDetail() {
-  const { uuid }          = useParams();
-  const navigate          = useNavigate();
-  const location          = useLocation();
-  const scheduleTitle     = location.state?.scheduleTitle ?? null;
+  const { uuid }      = useParams();
+  const navigate      = useNavigate();
+  const location      = useLocation();
+  const scheduleTitle = location.state?.scheduleTitle ?? null;
 
   const { isGlobalAdmin, role, userId } = useAuth();
   const { hasPermission }       = usePermissions();
@@ -34,10 +34,10 @@ export default function SubmissionDetail() {
   if (!data) return <p>Loading…</p>;
 
   const { submission, images, labelMap } = data;
-  const overallStatus  = submission.overall_status || submission.status || 'pending';
-  const roundsList     = rounds?.rounds      ?? [];
-  const currentRound   = rounds?.current_round ?? 1;
-  const displayTitle   = submission.schedule_title ?? scheduleTitle;
+  const overallStatus = submission.overall_status || submission.status || 'pending';
+  const roundsList    = rounds?.rounds      ?? [];
+  const currentRound  = rounds?.current_round ?? 1;
+  const displayTitle  = submission.schedule_title ?? scheduleTitle;
 
   async function handleDelete() {
     setDeleting(true);
@@ -54,19 +54,20 @@ export default function SubmissionDetail() {
 
   return (
     <div>
-      <div className="sticky-header">
-        <nav className="breadcrumb">
-          <span className="breadcrumb-link" onClick={() => navigate('/submissions')}>Submissions</span>
-          <span className="breadcrumb-sep">›</span>
-          <span className="breadcrumb-current">{submission.category_name} Inspection</span>
+      <div className="sticky-top bg-white border-bottom py-2 mb-3">
+        <nav aria-label="breadcrumb">
+          <ol className="breadcrumb mb-1">
+            <li className="breadcrumb-item" role="button" onClick={() => navigate('/submissions')}>
+              Submissions
+            </li>
+            <li className="breadcrumb-item active">{submission.category_name} Inspection</li>
+          </ol>
         </nav>
-        <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0">
           <div>
-            <h1>{submission.category_name} Inspection</h1>
+            <h1 className="h4 fw-bold mb-0">{submission.category_name} Inspection</h1>
             {displayTitle && (
-              <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--muted)', fontWeight: 500 }}>
-                {displayTitle}
-              </p>
+              <p className="text-muted small mb-0 mt-1">{displayTitle}</p>
             )}
           </div>
           {canDelete && overallStatus !== 'closed' && (
@@ -78,32 +79,21 @@ export default function SubmissionDetail() {
       </div>
 
       {/* Meta row */}
-      <div className="detail-meta" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="d-flex align-items-center gap-3 flex-wrap text-muted small mb-3">
         <span>Submitted: {new Date(submission.submitted_at).toLocaleString()}</span>
         <StatusBadge status={overallStatus} />
-        {rounds && (
-          <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            Round {currentRound}
-          </span>
-        )}
+        {rounds && <span>Round {currentRound}</span>}
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: '0.75rem', margin: '1rem 0', flexWrap: 'wrap' }}>
+      <div className="d-flex gap-3 my-3 flex-wrap">
         {overallStatus === 'rejected' && (String(submission.attendee_id) === String(userId) || role === 'attendee') && (
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate(`/submissions/${uuid}/review`)}
-          >
+          <button className="btn btn-primary" onClick={() => navigate(`/submissions/${uuid}/review`)}>
             📝 Review &amp; Add Remarks
           </button>
         )}
-
         {overallStatus === 'under_review' && (String(submission.assigned_to) === String(userId) || isInspector) && (
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate(`/submissions/${uuid}/reinspect`)}
-          >
+          <button className="btn btn-primary" onClick={() => navigate(`/submissions/${uuid}/reinspect`)}>
             🔄 Start Re-inspection
           </button>
         )}
@@ -111,42 +101,29 @@ export default function SubmissionDetail() {
 
       {/* Latest decision banner */}
       {submission.status !== 'pending' && submission.status !== 'submitted' && overallStatus !== 'under_review' && (
-        <div style={{
-          margin: '1rem 0', padding: '1rem 1.25rem', borderRadius: 10,
-          background: overallStatus === 'approved' ? '#f0fdf4' : '#fef2f2',
-          border: `1px solid ${overallStatus === 'approved' ? '#86efac' : '#fca5a5'}`,
-        }}>
-          <p style={{ margin: 0, fontWeight: 600,
-            color: overallStatus === 'approved' ? '#166534' : '#991b1b' }}>
+        <div className={`alert ${overallStatus === 'approved' ? 'alert-success' : 'alert-danger'} mb-3`}>
+          <p className="mb-0 fw-semibold">
             {overallStatus === 'approved' ? '✓ Approved' : '✗ Rejected'}
             {submission.reviewed_by_username && ` by ${submission.reviewed_by_username}`}
             {submission.reviewed_at && (
-              <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: '#64748b', fontSize: '0.85rem' }}>
+              <span className="fw-normal ms-2 text-muted small">
                 on {new Date(submission.reviewed_at).toLocaleString()}
               </span>
             )}
           </p>
           {submission.review_notes && (
-            <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', color: '#475569' }}>
-              {submission.review_notes}
-            </p>
+            <p className="mb-0 mt-1 small">{submission.review_notes}</p>
           )}
           {overallStatus === 'rejected' && submission.review_deadline && (() => {
             const deadlinePassed = Date.now() > new Date(submission.review_deadline).getTime();
             return (
-              <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ color: '#64748b', fontWeight: 500 }}>Attendee review deadline:</span>
-                <strong style={{ color: deadlinePassed ? '#dc2626' : '#991b1b' }}>
+              <p className="mb-0 mt-2 small d-flex align-items-center gap-2 flex-wrap">
+                <span className="fw-medium">Attendee review deadline:</span>
+                <strong className={deadlinePassed ? 'text-danger' : ''}>
                   {new Date(submission.review_deadline).toLocaleString()}
                 </strong>
                 {deadlinePassed && (
-                  <span style={{
-                    fontSize: '0.75rem', fontWeight: 700, color: '#dc2626',
-                    background: '#fef2f2', border: '1px solid #fca5a5',
-                    borderRadius: 4, padding: '1px 6px',
-                  }}>
-                    Deadline passed
-                  </span>
+                  <span className="badge bg-danger">Deadline passed</span>
                 )}
               </p>
             );
@@ -155,25 +132,27 @@ export default function SubmissionDetail() {
       )}
 
       {/* Answers */}
-      <div className="detail-section">
-        <h2>Answers</h2>
-        <dl className="answers-list">
+      <div className="mb-4">
+        <h2 className="h5 fw-bold mb-3">Answers</h2>
+        <div className="d-flex flex-column gap-2">
           {Object.entries(submission.answers).map(([key, value]) => (
-            <div key={key} className="answer-row">
-              <dt>{labelMap[key] || `Question #${key}`}</dt>
-              <dd>{value}</dd>
+            <div key={key} className="d-flex gap-3 p-3 border rounded">
+              <dt className="fw-semibold text-muted" style={{ minWidth: '200px', fontSize: '0.9rem' }}>
+                {labelMap[key] || `Question #${key}`}
+              </dt>
+              <dd className="mb-0">{value}</dd>
             </div>
           ))}
-        </dl>
+        </div>
       </div>
 
       {/* Images */}
       {images.length > 0 && (
-        <div className="detail-section">
-          <h2>Images</h2>
-          <div className="image-gallery">
+        <div className="mb-4">
+          <h2 className="h5 fw-bold mb-3">Images</h2>
+          <div className="row row-cols-2 row-cols-md-4 g-3">
             {images.map(img => (
-              <div key={img.id} className="gallery-item">
+              <div key={img.id} className="col text-center">
                 <AuthenticatedImage
                   id={img.id}
                   alt={img.original_name}
@@ -188,7 +167,7 @@ export default function SubmissionDetail() {
 
       {/* Round history */}
       {roundsList.length > 0 && (
-        <div className="detail-section">
+        <div className="mb-4">
           <RoundTimeline rounds={roundsList} labelMap={labelMap} />
         </div>
       )}
@@ -206,3 +185,6 @@ export default function SubmissionDetail() {
     </div>
   );
 }
+
+
+

@@ -1,29 +1,31 @@
 export default function ConfirmModal({ title, message, confirmLabel = 'Confirm', danger = false, onConfirm, onCancel }) {
   return (
-    <div className="profile-modal-overlay" onClick={onCancel}>
-      <div className="profile-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '360px' }}>
-        <h3 className="profile-modal-name" style={{ marginBottom: '0.5rem' }}>{title}</h3>
+    <div className="modal d-block" onClick={onCancel}>
+      <div
+        className="profile-modal"
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: '360px' }}
+      >
+        <button className="profile-modal-close" onClick={onCancel} aria-label="Close">
+          &times;
+        </button>
+        <h3 className="profile-modal-name mb-2">{title}</h3>
         {message && (
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-            {message}
-          </p>
+          <p className="text-muted small text-center mb-3">{message}</p>
         )}
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div className="d-flex gap-2 w-100">
           <button
-            className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
-            style={{ flex: 1 }}
+            className={`btn ${danger ? 'btn-danger' : 'btn-primary'} flex-fill`}
             onClick={onConfirm}
           >
             {confirmLabel}
           </button>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onCancel}>
+          <button className="btn btn-secondary flex-fill" onClick={onCancel}>
             Cancel
           </button>
         </div>
-        <button className="profile-modal-close" onClick={onCancel} aria-label="Close">
-          &times;
-        </button>
       </div>
     </div>
   );
 }
+

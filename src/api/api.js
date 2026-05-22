@@ -123,13 +123,8 @@ export const getAttendeesByLocation = (locationId) =>
 // Rounds
 export const getRounds              = (uuid)                    => authApi.get(`/submissions/${uuid}/rounds`);
 export const submitRound            = (uuid, formData)          => authApi.post(`/submissions/${uuid}/rounds`, formData);
-<<<<<<< HEAD
 export const submitRoundDecision    = (uuid, roundId, status, review_notes, attendee_review_due) =>
-  authApi.patch(`/submissions/${uuid}/rounds/${roundId}/decision`, { status, review_notes,  attendee_review_due, });
-=======
-export const submitRoundDecision    = (uuid, roundId, status, review_notes, review_deadline) =>
-  authApi.patch(`/submissions/${uuid}/rounds/${roundId}/decision`, { status, review_notes, ...(review_deadline ? { review_deadline } : {}) });
->>>>>>> d08762eb86d43e04069634da41ca358a2b1cbb01
+  authApi.patch(`/submissions/${uuid}/rounds/${roundId}/decision`, { status, review_notes, attendee_review_due });
 export const submitRemarks          = (uuid, roundId, remarks)  =>
   authApi.post(`/submissions/${uuid}/rounds/${roundId}/remarks`, { remarks });
 export const uploadAttendeeImages   = (uuid, roundId, formData) =>
