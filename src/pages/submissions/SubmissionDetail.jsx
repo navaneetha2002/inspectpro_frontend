@@ -250,7 +250,7 @@ export default function SubmissionDetail() {
   const { isGlobalAdmin, role, userId } = useAuth();
   const { hasPermission }       = usePermissions();
 
-  const canDelete   = isGlobalAdmin || hasPermission(PERMISSIONS.VIEW_SUBMISSIONS);
+  const canDelete   = isGlobalAdmin || role === 'local_admin';
   const isInspector = ['inspector', 'global_admin', 'local_admin'].includes(role);
 
   const [data,        setData]        = useState(null);
@@ -268,9 +268,10 @@ export default function SubmissionDetail() {
   if (!data) return <p>Loading…</p>;
 
   const { submission, images, labelMap } = data;
-  const overallStatus = submission.overall_status || submission.status || 'pending';
-  const roundsList    = rounds?.rounds      ?? [];
-  const currentRound  = rounds?.current_round ?? 1;
+  const overallStatus  = submission.overall_status || submission.status || 'pending';
+  const roundsList     = rounds?.rounds      ?? [];
+  const currentRound   = rounds?.current_round ?? 1;
+  const displayTitle   = submission.schedule_title ?? scheduleTitle;
 
   async function handleDelete() {
     setDeleting(true);
@@ -296,13 +297,13 @@ export default function SubmissionDetail() {
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
           <div>
             <h1>{submission.category_name} Inspection</h1>
-            {scheduleTitle && (
+            {displayTitle && (
               <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--muted)', fontWeight: 500 }}>
-                {scheduleTitle}
+                {displayTitle}
               </p>
             )}
           </div>
-          {canDelete && overallStatus !== 'closed' && overallStatus !== 'approved' && (
+          {canDelete && overallStatus !== 'closed' && (
             <button onClick={() => setConfirmOpen(true)} className="btn btn-danger" disabled={deleting}>
               {deleting ? 'Deleting...' : 'Delete Submission'}
             </button>
@@ -323,7 +324,7 @@ export default function SubmissionDetail() {
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: '0.75rem', margin: '1rem 0', flexWrap: 'wrap' }}>
-        {overallStatus === 'rejected' && String(submission.attendee_id) === String(userId) && (
+        {overallStatus === 'rejected' && (String(submission.attendee_id) === String(userId) || role === 'attendee') && (
           <button
             className="btn btn-primary"
             onClick={() => navigate(`/submissions/${uuid}/review`)}
@@ -332,7 +333,7 @@ export default function SubmissionDetail() {
           </button>
         )}
 
-        {overallStatus === 'under_review' && String(submission.assigned_to) === String(userId) && (
+        {overallStatus === 'under_review' && (String(submission.assigned_to) === String(userId) || isInspector) && (
           <button
             className="btn btn-primary"
             onClick={() => navigate(`/submissions/${uuid}/reinspect`)}
