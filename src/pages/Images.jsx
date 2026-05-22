@@ -15,6 +15,7 @@ export default function Images() {
   const [error, setError]             = useState(null);
   const [schedule, setSchedule]       = useState(null);
   const [reviewDeadline, setReviewDeadline] = useState('');
+  const [attendeeDeadline, setAttendeeDeadline] = useState('');
 
   const scheduleId  = new URLSearchParams(window.location.search).get('schedule_id');
   const isInspector = ['inspector', 'global_admin', 'local_admin'].includes(role);
@@ -50,6 +51,12 @@ export default function Images() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    console.log('handleSubmit state:', {
+    decision,
+    attendeeDeadline,   // or whatever your state variable is named
+    isInspector,
+  });
+
     if (files.length === 0) {
       setError('Please upload at least one image before submitting.');
       return;
@@ -60,10 +67,10 @@ export default function Images() {
       return;
     }
 
-    if (isInspector && decision === 'rejected' && !reviewDeadline) {
-      setError('Please set a deadline for the attendee to submit their review.');
-      return;
-    }
+    if (isInspector && decision === 'rejected' && !attendeeDeadline) {
+  setError('Please set a deadline for the attendee to submit their review.');
+  return;
+}
 
     setSubmitting(true);
     setError(null);
@@ -83,13 +90,13 @@ export default function Images() {
       const { data } = await submitForm(slug, fd);
 
       if (isInspector && decision) {
-        await updateSubmissionStatus(
-          data.submissionUuid,
-          decision,
-          reviewNotes,
-          decision === 'rejected' ? reviewDeadline : null,
-        );
-      }
+  await updateSubmissionStatus(
+    data.submissionUuid,
+    decision,
+    reviewNotes,
+    decision === 'rejected' ? attendeeDeadline : null
+  );
+}
 
       if (scheduleId) {
         if (data.submissionUuid) {
@@ -236,24 +243,30 @@ export default function Images() {
             </p>
           )}
 
-          {decision === 'rejected' && (
-            <div style={{ marginTop: '1rem', padding: '1rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8 }}>
-              <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.875rem', color: '#9a3412' }}>
-                Attendee Review Deadline <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <p style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', color: '#c2410c' }}>
-                Set a deadline by which the attendee must submit their review remarks.
-              </p>
-              <input
-                type="datetime-local"
-                className="form-input"
-                value={reviewDeadline}
-                min={new Date().toISOString().slice(0, 16)}
-                onChange={e => setReviewDeadline(e.target.value)}
-                required
-              />
-            </div>
-          )}
+          {/* After the Approve/Reject buttons, add: */}
+{decision === 'rejected' && (
+  <div style={{
+    marginTop: '1rem', padding: '1rem',
+    background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8,
+  }}>
+    <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.875rem', color: '#9a3412' }}>
+      Attendee Review Deadline <span style={{ color: '#dc2626' }}>*</span>
+    </label>
+    <p style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', color: '#c2410c' }}>
+      Set a deadline by which the attendee must submit their review remarks.
+    </p>
+    <input
+  type="datetime-local"
+  className="form-input"
+  value={attendeeDeadline}
+  min={new Date().toISOString().slice(0, 16)}
+  onChange={e => {
+    console.log('deadline changed to:', e.target.value);
+    setAttendeeDeadline(e.target.value);
+  }}
+/>
+  </div>
+)}
         </div>
       )}
 
@@ -270,7 +283,7 @@ export default function Images() {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || files.length === 0 || (isInspector && !decision)}
+          disabled={submitting || (isInspector && !decision) || (decision === 'rejected' && !attendeeDeadline)}
           style={{
             opacity: (submitting || files.length === 0 || (isInspector && !decision)) ? 0.5 : 1,
             cursor: (submitting || files.length === 0 || (isInspector && !decision)) ? 'not-allowed' : 'pointer',
