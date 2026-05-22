@@ -70,7 +70,7 @@ export default function AttendeeReview() {
     ? rejectedRound.answers
     : (currentRound.answers || {});
   const reviewNotes    = rejectedRound?.review_notes ?? currentRound.review_notes;
-  const reviewDeadline = rejectedRound?.review_deadline ?? null;
+  const reviewDeadline = rejectedRound?.review_deadline ?? rejectedRound?.attendee_review_deadline ?? null;
   const deadlinePassed = reviewDeadline ? Date.now() > new Date(reviewDeadline).getTime() : false;
 
   if (deadlinePassed) {
@@ -162,9 +162,9 @@ export default function AttendeeReview() {
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
           <div>
             <h1>Review Inspection — Round {currentRound.round_number}</h1>
-            {submission.schedule_title && (
+            {(submission.schedule_title || submission.category_name) && (
               <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--muted)', fontWeight: 500 }}>
-                {submission.schedule_title}
+                {submission.schedule_title || submission.category_name}
               </p>
             )}
           </div>

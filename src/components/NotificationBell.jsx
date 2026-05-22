@@ -37,6 +37,17 @@ function getAssignmentRole(n) {
   return null;
 }
 
+function extractInspectionTitle(message, title) {
+  if (message) {
+    const nameMatch = message.match(/for:\s*"([^"]+)"/i);
+    if (nameMatch) return nameMatch[1];
+  }
+  if (title && title.includes(' — ')) {
+    return title.split(' — ').pop().trim();
+  }
+  return title || null;
+}
+
 function AssignmentBadge({ notif }) {
   const key = getAssignmentRole(notif);
   if (!key) return null;
@@ -52,7 +63,7 @@ export default function NotificationBell({ align = 'right' }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   const navigate = useNavigate();
-  const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotifications();
+  const { notifications, unreadCount, submissionTitleMap = {}, markRead, markAllRead, remove, clearAll } = useNotifications();
   const unreadNotifications = notifications.filter(n => !n.is_read);
 
   function handleNotifClick(n) {
@@ -123,7 +134,21 @@ export default function NotificationBell({ align = 'right' }) {
                   <div className="notif-item-body">
                     {!n.is_read && <span className="notif-dot" aria-hidden="true" />}
                     <div className="notif-item-text">
-                      <span className="notif-item-title">{n.title}</span>
+                      {(() => {
+                        const uuid = n.action_url?.match(/\/submissions\/([\w-]+)/)?.[1];
+                        const inspTitle = uuid ? submissionTitleMap[uuid] : null;
+                        return inspTitle ? (
+                          <span style={{
+                            display: 'inline-block', marginBottom: '0.2rem',
+                            fontSize: '0.68rem', fontWeight: 700, padding: '1px 7px',
+                            borderRadius: 999, background: '#eff6ff', color: '#1d4ed8',
+                            border: '1px solid #bfdbfe',
+                          }}>
+                            {inspTitle}
+                          </span>
+                        ) : null;
+                      })()}
+                      <span className="notif-item-title">{extractInspectionTitle(n.message, n.title)}</span>
                       <AssignmentBadge notif={n} />
                       <span className="notif-item-msg">{n.message}</span>
                       <span className="notif-item-time">{timeAgo(n.created_at)}</span>

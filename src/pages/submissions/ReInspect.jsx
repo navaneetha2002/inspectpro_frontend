@@ -147,9 +147,9 @@ export default function ReInspect() {
         <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
           <div>
             <h1>Re-inspection — Round {rounds.current_round}</h1>
-            {rounds.schedule_title && (
+            {(rounds.schedule_title || submission.category_name) && (
               <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--muted)', fontWeight: 500 }}>
-                {rounds.schedule_title}
+                {rounds.schedule_title || submission.category_name}
               </p>
             )}
           </div>

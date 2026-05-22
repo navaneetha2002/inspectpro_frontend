@@ -343,7 +343,7 @@ if (err?.response?.status === 404) {
         .sort((a, b) => b.round_number - a.round_number)
         .find(r => r.status === 'rejected')
     : null;
-  const reviewDeadline         = rejectedRound?.review_deadline ?? null;
+  const reviewDeadline         = rejectedRound?.review_deadline ?? rejectedRound?.attendee_review_deadline ?? null;
   const isReviewDeadlinePassed = reviewDeadline
     ? Date.now() > new Date(reviewDeadline).getTime()
     : false;
