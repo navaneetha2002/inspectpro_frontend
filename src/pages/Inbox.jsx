@@ -49,41 +49,42 @@ function AssignmentBadge({ notif }) {
   );
 }
 
-// Extract submission UUID from action_url like "/submissions/91886407-788f-4abf-93b9-245975e3f159"
-function getSubmissionId(n) {
-  if (!n.action_url) return null;
-  const match = n.action_url.match(/\/submissions\/([\w-]+)/);
-  return match ? match[1] : null;
+// Returns the most meaningful short title from the notification:
+// 1. Quoted name from "assigned for: "test15"" messages
+// 2. Part after " — " for compound titles like "Review Submitted — Round 2 Ready"
+// 3. Falls back to the raw title
+function extractInspectionTitle(message, title) {
+  if (message) {
+    const nameMatch = message.match(/for:\s*"([^"]+)"/i);
+    if (nameMatch) return nameMatch[1];
+  }
+  if (title && title.includes(' — ')) {
+    return title.split(' — ').pop().trim();
+  }
+  return title || null;
 }
-
-// Build a Set of submission UUIDs where any notification has "approved" in the title
-function getApprovedSubmissionIds(notifications) {
-  const approvedIds = new Set();
-  notifications.forEach(n => {
-    const title = (n.title || '').toLowerCase();
-    const submissionId = getSubmissionId(n);
-    if (submissionId && title.includes('approved')) {
-      approvedIds.add(submissionId);
-    }
-  });
-  return approvedIds;
+// Resolve a notification to its submission UUID.
+// Handles both /submissions/UUID and /schedules/ID action URLs.
+function getSubmissionId(n, scheduleIdToUuid = {}) {
+  if (!n.action_url) return null;
+  const subMatch = n.action_url.match(/\/submissions\/([\w-]+)/);
+  if (subMatch) return subMatch[1];
+  const schedMatch = n.action_url.match(/\/schedules\/(\d+)/);
+  if (schedMatch) return scheduleIdToUuid[schedMatch[1]] || null;
+  return null;
 }
 
 export default function Inbox() {
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { notifications, unreadCount, markRead, markAllRead, submissionTitleMap, approvedSubmissionIds, scheduleIdToUuid } = useNotifications();
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // Build approved submission IDs once from all notifications
-  const approvedSubmissionIds = getApprovedSubmissionIds(notifications);
-
-  // A notification is "completed" if its submission UUID is in the approved set
+  // A notification is "completed" if its submission is approved
   function isCompleted(n) {
-    const submissionId = getSubmissionId(n);
-    if (submissionId && approvedSubmissionIds.has(submissionId)) return true;
-    return false;
+    const submissionId = getSubmissionId(n, scheduleIdToUuid);
+    return submissionId ? approvedSubmissionIds.has(submissionId) : false;
   }
 
-  const filtered    = showCompleted ? notifications : notifications.filter(n => !isCompleted(n));
+  const filtered    = showCompleted ? notifications.filter(isCompleted) : notifications.filter(n => !isCompleted(n));
   const hiddenCount = notifications.filter(isCompleted).length;
   const unread      = filtered.filter(n => !n.is_read);
   const read        = filtered.filter(n =>  n.is_read);
@@ -126,7 +127,7 @@ export default function Inbox() {
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {unread.map(n => (
-                  <NotifCard key={n.id} n={n} onRead={() => markRead(n.id)} />
+                  <NotifCard key={n.id} n={n} onRead={() => markRead(n.id)} submissionTitleMap={submissionTitleMap} />
                 ))}
               </div>
             </section>
@@ -140,7 +141,7 @@ export default function Inbox() {
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {read.map(n => (
-                  <NotifCard key={n.id} n={n} />
+                  <NotifCard key={n.id} n={n} submissionTitleMap={submissionTitleMap} />
                 ))}
               </div>
             </section>
@@ -151,8 +152,10 @@ export default function Inbox() {
   );
 }
 
-function NotifCard({ n, onRead }) {
+function NotifCard({ n, onRead, submissionTitleMap = {} }) {
   const navigate = useNavigate();
+  const submissionUuid = n.action_url?.match(/\/submissions\/([\w-]+)/)?.[1];
+  const inspectionTitle = submissionUuid ? submissionTitleMap[submissionUuid] : null;
 
   function handleClick() {
     if (!n.is_read) onRead?.();
@@ -192,9 +195,20 @@ function NotifCard({ n, onRead }) {
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
+        {inspectionTitle && (
+          <div style={{ marginBottom: '0.3rem' }}>
+            <span style={{
+              fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px',
+              borderRadius: 999, background: '#eff6ff', color: '#1d4ed8',
+              border: '1px solid #bfdbfe',
+            }}>
+              {inspectionTitle}
+            </span>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
           <span style={{ fontWeight: n.is_read ? 500 : 700, fontSize: '0.95rem', color: 'var(--text)' }}>
-            {n.title}
+            {extractInspectionTitle(n.message, n.title)}
           </span>
           <AssignmentBadge notif={n} />
         </div>
