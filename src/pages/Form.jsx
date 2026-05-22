@@ -48,9 +48,7 @@ export default function Form() {
 
   useEffect(() => {
     if (scheduleId) {
-      getScheduleById(scheduleId)
-        .then(r => setSchedule(r.data))
-        .catch(() => {});
+      getScheduleById(scheduleId).then(r => setSchedule(r.data)).catch(() => {});
     }
   }, [scheduleId]);
 
@@ -81,9 +79,9 @@ export default function Form() {
     const now = Date.now();
     if (now < new Date(schedule.scheduled_at).getTime()) {
       return (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Inspection not yet available</p>
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+        <div className="text-center py-4">
+          <p className="fw-semibold mb-1">Inspection not yet available</p>
+          <p className="text-muted small">
             This inspection opens on {new Date(schedule.scheduled_at).toLocaleString()}.
           </p>
         </div>
@@ -91,9 +89,9 @@ export default function Form() {
     }
     if (schedule.submission_deadline && now > new Date(schedule.submission_deadline).getTime()) {
       return (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Submission deadline has passed</p>
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+        <div className="text-center py-4">
+          <p className="fw-semibold mb-1">Submission deadline has passed</p>
+          <p className="text-muted small">
             The deadline was {new Date(schedule.submission_deadline).toLocaleString()}.
             Contact your coordinator to extend the deadline.
           </p>
@@ -104,57 +102,54 @@ export default function Form() {
 
   return (
     <div>
-      <div className="form-header">
-        <h1>{data.category.name}</h1>
+      <div className="mb-4">
+        <h1 className="h3 fw-bold">{data.category.name}</h1>
       </div>
 
       {isReadOnly && (
-        <div className="submission-banner" style={{
-          background: '#f0fdf4', border: '1px solid #86efac',
-          borderRadius: '8px', padding: '0.75rem 1rem',
-          marginBottom: '1.5rem', color: '#166534', fontSize: '0.95rem',
-        }}>
+        <div className="alert alert-success">
           You already submitted this form on{' '}
           <strong>{new Date(existing.submitted_at).toLocaleString()}</strong>.
           This is a read-only view of your responses.
         </div>
       )}
 
-      <form onSubmit={isReadOnly ? e => e.preventDefault() : handleNext} className="question-form">
+      <form onSubmit={isReadOnly ? e => e.preventDefault() : handleNext}
+            className="d-flex flex-column gap-3">
         {data.questions.map(q => {
           const visible = isVisible(q);
           return (
-            <div key={q.id} className="question-block" style={{ display: visible ? 'block' : 'none' }}>
-              <label className="question-label">
+            <div key={q.id} className="card card-body" style={{ display: visible ? 'block' : 'none' }}>
+              <label className="form-label fw-semibold">
                 {q.question_text}
-                {q.is_required && !isReadOnly && <span className="required">*</span>}
+                {q.is_required && !isReadOnly && <span className="text-danger ms-1">*</span>}
               </label>
 
               {q.field_type === 'text' && (
-                <input className="form-input" type="text"
+                <input className="form-control" type="text"
                   value={answers[String(q.id)] || ''}
                   onChange={e => handleChange(q.id, e.target.value)}
                   required={visible && q.is_required && !isReadOnly}
                   disabled={isReadOnly} />
               )}
               {q.field_type === 'textarea' && (
-                <textarea className="form-input form-textarea"
+                <textarea className="form-control"
                   value={answers[String(q.id)] || ''}
                   onChange={e => handleChange(q.id, e.target.value)}
                   required={visible && q.is_required && !isReadOnly}
                   disabled={isReadOnly} />
               )}
               {q.field_type === 'number' && (
-                <input className="form-input" type="number"
+                <input className="form-control" type="number"
                   value={answers[String(q.id)] || ''}
                   onChange={e => handleChange(q.id, e.target.value)}
                   required={visible && q.is_required && !isReadOnly}
                   disabled={isReadOnly} />
               )}
               {q.field_type === 'yesno' && (
-                <div className="radio-group">
+                <div className="d-flex gap-3 flex-wrap">
                   {['Yes', 'No'].map(opt => (
-                    <label key={opt} className="radio-option">
+                    <label key={opt} className="form-check-label d-flex align-items-center gap-1">
                       <input type="radio" name={`q_${q.id}`} value={opt}
                         checked={answers[String(q.id)] === opt}
                         onChange={() => !isReadOnly && handleChange(q.id, opt)}
@@ -165,7 +160,7 @@ export default function Form() {
                 </div>
               )}
               {q.field_type === 'select' && (
-                <select className="form-input"
+                <select className="form-select"
                   value={answers[String(q.id)] || ''}
                   onChange={e => handleChange(q.id, e.target.value)}
                   required={visible && q.is_required && !isReadOnly}
@@ -177,9 +172,9 @@ export default function Form() {
                 </select>
               )}
               {q.field_type === 'radio' && (
-                <div className="radio-group">
+                <div className="d-flex gap-3 flex-wrap">
                   {safeOptions(q.options).map(opt => (
-                    <label key={opt} className="radio-option">
+                    <label key={opt} className="form-check-label d-flex align-items-center gap-1">
                       <input type="radio" name={`q_${q.id}`} value={opt}
                         checked={answers[String(q.id)] === opt}
                         onChange={() => !isReadOnly && handleChange(q.id, opt)}
@@ -194,7 +189,7 @@ export default function Form() {
         })}
 
         {!isReadOnly && (
-          <div className="form-actions">
+          <div className="d-flex gap-3 flex-wrap mt-2">
             <button type="submit" className="btn btn-primary">
               Next: Upload Images
             </button>
@@ -204,3 +199,6 @@ export default function Form() {
     </div>
   );
 }
+
+
+

@@ -149,7 +149,7 @@ export default function Sidebar() {
       </aside>
 
       {profileOpen && (
-        <div className="profile-modal-overlay" onClick={() => setProfileOpen(false)}>
+        <div className="modal d-block" onClick={() => setProfileOpen(false)}>
           <div className="profile-modal" onClick={e => e.stopPropagation()}>
             <div className="profile-modal-avatar">
               {(username || '?').slice(0, 2).toUpperCase()}
@@ -197,3 +197,4 @@ export default function Sidebar() {
     </>
   );
 }
+

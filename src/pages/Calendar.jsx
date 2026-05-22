@@ -167,33 +167,6 @@ export default function CalendarPage() {
   }, [showForm, isLocationLocked, userLocationId, loadLocationData]);
 
   function handleEventClick({ event }) {
-  const props = event.extendedProps;
-  console.log('attendee_review_due:', props.attendee_review_due);
-  console.log('full sel props:', props);
-  setSelectedEvent(props);
-  setSubmissionStatus(null);
-  setSubmissionRounds(null);
-  setShowExtendDeadline(false);
-  setNewDeadline('');
-
-  if (props.status === 'completed' || props.status === 'in_progress') {
-    const uuid = props.submission_uuid
-      || localStorage.getItem(`schedule_submission_${props.id}`);
-    if (uuid) {
-      getSubmission(uuid)
-  .then(async r => {
-    const sub = r.data?.submission ?? null;
-    setSubmissionStatus(sub);
-
-    // âœ… Auto-complete if submission is approved and schedule isn't completed yet
-    if (sub?.status === 'approved' && props.status !== 'completed') {
-      await updateScheduleStatus(props.id, 'completed');
-      await loadSchedules();
-      // Update the selectedEvent so the modal reflects the new status
-      setSelectedEvent(prev => prev ? { ...prev, status: 'completed' } : prev);
-    }
-  })
-  .catch(() => setSubmissionStatus(null));
     const props = event.extendedProps;
     setSelectedEvent(props);
     setSubmissionStatus(null);
@@ -236,7 +209,7 @@ if (err?.response?.status === 404) {
   try {
     await deleteSchedule(props.id);
   } catch {
-    // Schedule may already be gone (cascade delete) — ignore
+    // Schedule may already be gone (cascade delete) � ignore
   }
   setSelectedEvent(null);
   window.location.reload();
@@ -388,11 +361,11 @@ if (err?.response?.status === 404) {
     if (uuid) notifyReviewDeadlineMissed(uuid).catch(() => {});
   }
 
-  if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading…</p>;
+  if (loading) return <p style={{ padding: '2rem', color: '#6b7280' }}>Loading�</p>;
 
   return (
     <div>
-      <div className="page-header">
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <h1>Inspection Schedule</h1>
         {canCreate && (
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>
@@ -402,9 +375,9 @@ if (err?.response?.status === 404) {
       </div>
 
       {error && (
-        <div className="alert alert-info" style={{ borderColor: '#fecaca', background: '#fef2f2', color: '#b91c1c', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="alert alert-danger d-flex justify-content-between align-items-center>
           <span>{error}</span>
-          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'inherit' }}>×</button>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'inherit' }}>�</button>
         </div>
       )}
 
@@ -436,110 +409,110 @@ if (err?.response?.status === 404) {
         />
       </div>
 
-      {/* ── Create Schedule Modal ── */}
+      {/* -- Create Schedule Modal -- */}
       {showForm && canCreate && (
-        <div className="modal-overlay" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setFilteredAttendees([]); setFilteredInspectors([]); setFilteredCategories([]); }}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
-            <h2 className="modal-title">New Inspection Schedule</h2>
-            <p className="modal-message" style={{ marginBottom: '1.25rem' }}>
+        <div className="modal d-block" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setFilteredAttendees([]); setFilteredInspectors([]); setFilteredCategories([]); }}>
+          <div className="modal-dialog modal-content p-3" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <h2 className="h5 fw-bold mb-1">New Inspection Schedule</h2>
+            <p className="text-muted small" style={{ marginBottom: '1.25rem' }}>
               Assign an inspector to a category and location.
             </p>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group">
+              <div className="mb-3">
                 <label>Title <span style={{ color: 'var(--danger)' }}>*</span></label>
-                <input type="text" required className="form-input"
+                <input type="text" required className="form-control"
                   placeholder="e.g. Monthly fire safety check"
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
               </div>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="row g-3">
+                <div className="mb-3">
                   <label>Location <span style={{ color: 'var(--danger)' }}>*</span></label>
                   {isLocationLocked ? (
-                    <input className="form-input"
+                    <input className="form-control"
                       value={locations.find(l => String(l.id) === String(userLocationId))?.name ?? ''}
                       readOnly
                       style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
                   ) : (
-                    <select required className="form-input" value={form.location_id}
+                    <select required className="form-control" value={form.location_id}
                       onChange={e => {
                         const locId = e.target.value;
                         setForm(f => ({ ...f, location_id: locId, attendee_id: '', assigned_to: '', category_id: '' }));
                         loadLocationData(locId);
                       }}>
-                      <option value="">Select location…</option>
+                      <option value="">Select location�</option>
                       {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
                   )}
                 </div>
-                <div className="form-group">
+                <div className="mb-3">
                   <label>Category</label>
-                  <select className="form-input" value={form.category_id}
+                  <select className="form-control" value={form.category_id}
                     disabled={!form.location_id || locationDataLoading}
                     onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
                     style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
-                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select category…'}
+                      {!form.location_id ? 'Select location first�' : locationDataLoading ? 'Loading�' : 'Select category�'}
                     </option>
                     {filteredCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="row g-3">
+                <div className="mb-3">
                   <label>Assign To <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select required className="form-input" value={form.assigned_to}
+                  <select required className="form-control" value={form.assigned_to}
                     disabled={!form.location_id || locationDataLoading}
                     onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
                     style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
-                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select inspector…'}
+                      {!form.location_id ? 'Select location first�' : locationDataLoading ? 'Loading�' : 'Select inspector�'}
                     </option>
                     {filteredInspectors.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                   </select>
                 </div>
-                <div className="form-group">
+                <div className="mb-3">
                   <label>Attendee <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(location side)</small></label>
-                  <select className="form-input" value={form.attendee_id}
+                  <select className="form-control" value={form.attendee_id}
                     disabled={!form.location_id || locationDataLoading}
                     onChange={e => setForm(f => ({ ...f, attendee_id: e.target.value }))}
                     style={!form.location_id ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
                     <option value="">
-                      {!form.location_id ? 'Select location first…' : locationDataLoading ? 'Loading…' : 'Select attendee…'}
+                      {!form.location_id ? 'Select location first�' : locationDataLoading ? 'Loading�' : 'Select attendee�'}
                     </option>
                     {filteredAttendees.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="row g-3">
+                <div className="mb-3">
                   <label>Scheduled At <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <input type="datetime-local" required className="form-input"
+                  <input type="datetime-local" required className="form-control"
                     value={form.scheduled_at}
                     onChange={e => setForm(f => ({ ...f, scheduled_at: e.target.value }))} />
                 </div>
-                <div className="form-group">
+                <div className="mb-3">
                   <label>Submit By <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(deadline)</small></label>
-                  <input type="datetime-local" className="form-input"
+                  <input type="datetime-local" className="form-control"
                     value={form.submission_deadline}
                     min={form.scheduled_at || undefined}
                     onChange={e => setForm(f => ({ ...f, submission_deadline: e.target.value }))} />
                 </div>
               </div>
-              <div className="form-group">
+              <div className="mb-3">
                 <label>Notes <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(optional)</small></label>
-                <textarea className="form-input form-textarea" rows={2}
-                  placeholder="Any additional instructions…"
+                <textarea className="form-control" rows={2}
+                  placeholder="Any additional instructions�"
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
-              <div className="modal-actions">
+              <div className="d-flex justify-content-end gap-2 mt-3">
                 <button type="button" className="btn btn-secondary"
                   onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setFilteredAttendees([]); setFilteredInspectors([]); setFilteredCategories([]); }}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Saving…' : 'Create Schedule'}
+                  {submitting ? 'Saving�' : 'Create Schedule'}
                 </button>
               </div>
             </form>
@@ -547,53 +520,53 @@ if (err?.response?.status === 404) {
         </div>
       )}
 
-      {/* ── Reassign Schedule Modal ── */}
+      {/* -- Reassign Schedule Modal -- */}
       {showReassignModal && sel && canManage && (
-        <div className="modal-overlay" onClick={() => setShowReassignModal(false)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
-            <h2 className="modal-title">Reassign Schedule</h2>
-            <p className="modal-message" style={{ marginBottom: '1.25rem' }}>
+        <div className="modal d-block" onClick={() => setShowReassignModal(false)}>
+          <div className="modal-dialog modal-content p-3" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <h2 className="h5 fw-bold mb-1">Reassign Schedule</h2>
+            <p className="text-muted small" style={{ marginBottom: '1.25rem' }}>
               Update the inspector, attendee, or submission deadline. All other fields are locked.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group">
+              <div className="mb-3">
                 <label>Title</label>
-                <input type="text" className="form-input" value={sel.title} readOnly
+                <input type="text" className="form-control" value={sel.title} readOnly
                   style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
               </div>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="row g-3">
+                <div className="mb-3">
                   <label>Location</label>
-                  <input className="form-input" value={sel.location_name ?? ''} readOnly
+                  <input className="form-control" value={sel.location_name ?? ''} readOnly
                     style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
                 </div>
-                <div className="form-group">
+                <div className="mb-3">
                   <label>Category</label>
-                  <input className="form-input" value={sel.category_name ?? ''} readOnly
+                  <input className="form-control" value={sel.category_name ?? ''} readOnly
                     style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
                 </div>
               </div>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="row g-3">
+                <div className="mb-3">
                   <label>Assign To <span style={{ color: 'var(--danger)' }}>*</span></label>
                   {reassignDataLoading ? (
-                    <input className="form-input" value="Loading…" readOnly />
+                    <input className="form-control" value="Loading�" readOnly />
                   ) : (
-                    <select className="form-input" value={reassignForm.assigned_to}
+                    <select className="form-control" value={reassignForm.assigned_to}
                       onChange={e => setReassignForm(f => ({ ...f, assigned_to: e.target.value }))}>
-                      <option value="">Select inspector…</option>
+                      <option value="">Select inspector�</option>
                       {reassignInspectors.map(u => (
                         <option key={u.id} value={u.id}>{u.username}</option>
                       ))}
                     </select>
                   )}
                 </div>
-                <div className="form-group">
+                <div className="mb-3">
                   <label>Attendee <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(location side)</small></label>
                   {reassignDataLoading ? (
-                    <input className="form-input" value="Loading…" readOnly />
+                    <input className="form-control" value="Loading�" readOnly />
                   ) : (
-                    <select className="form-input" value={reassignForm.attendee_id}
+                    <select className="form-control" value={reassignForm.attendee_id}
                       onChange={e => setReassignForm(f => ({ ...f, attendee_id: e.target.value }))}>
                       <option value="">None</option>
                       {reassignAttendees.map(u => (
@@ -603,28 +576,28 @@ if (err?.response?.status === 404) {
                   )}
                 </div>
               </div>
-              <div className="form-row">
-                <div className="form-group">
+              <div className="row g-3">
+                <div className="mb-3">
                   <label>Scheduled At</label>
-                  <input type="text" className="form-input"
+                  <input type="text" className="form-control"
                     value={new Date(sel.scheduled_at).toLocaleString()} readOnly
                     style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
                 </div>
-                <div className="form-group">
+                <div className="mb-3">
                   <label>Submit By <small style={{ fontWeight: 400, color: 'var(--muted)' }}>(deadline)</small></label>
-                  <input type="datetime-local" className="form-input"
+                  <input type="datetime-local" className="form-control"
                     value={reassignForm.submission_deadline}
                     onChange={e => setReassignForm(f => ({ ...f, submission_deadline: e.target.value }))} />
                 </div>
               </div>
               {sel.notes && (
-                <div className="form-group">
+                <div className="mb-3">
                   <label>Notes</label>
-                  <textarea className="form-input form-textarea" rows={2} value={sel.notes ?? ''} readOnly
+                  <textarea className="form-control" rows={2} value={sel.notes ?? ''} readOnly
                     style={{ background: 'var(--input-disabled, #f3f4f6)', cursor: 'not-allowed' }} />
                 </div>
               )}
-              <div className="modal-actions">
+              <div className="d-flex justify-content-end gap-2 mt-3">
                 <button type="button" className="btn btn-secondary"
                   onClick={() => setShowReassignModal(false)}>
                   Cancel
@@ -632,7 +605,7 @@ if (err?.response?.status === 404) {
                 <button type="button" className="btn btn-primary"
                   disabled={!reassignForm.assigned_to || reassignLoading}
                   onClick={handleReassign}>
-                  {reassignLoading ? 'Saving…' : 'Save Changes'}
+                  {reassignLoading ? 'Saving�' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -640,10 +613,10 @@ if (err?.response?.status === 404) {
         </div>
       )}
 
-      {/* ── Event Detail Modal ── */}
+      {/* -- Event Detail Modal -- */}
 {sel && !showReassignModal && (
   <div
-    className="modal-overlay"
+    className="modal d-block"
     onClick={() => { setSelectedEvent(null); setShowReassignModal(false); }}
     style={{
       position: 'fixed', inset: 0, zIndex: 1000,
@@ -663,11 +636,11 @@ if (err?.response?.status === 404) {
       }}
     >
 
-      {/* ── Fixed Header ── */}
+      {/* -- Fixed Header -- */}
       <div style={{ padding: '1.25rem 1.25rem 1rem', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 className="modal-title" style={{ margin: 0 }}>{sel.title}</h2>
+            <h2 className="h5 fw-bold mb-1" style={{ margin: 0 }}>{sel.title}</h2>
             {sel.category_name && (
               <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
                 {sel.category_name}{sel.location_name ? ` @ ${sel.location_name}` : ''}
@@ -708,15 +681,15 @@ if (err?.response?.status === 404) {
         </div>
       </div>
 
-      {/* ── Scrollable Body ── */}
+      {/* -- Scrollable Body -- */}
       <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 1.25rem' }}>
         <div style={{ background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden', marginBottom: '1rem' }}>
           <DetailRow label="Assigned To" value={sel.assigned_to_name || `User #${sel.assigned_to}`} />
-          <DetailRow label="Attendee"    value={sel.attendee_name    || '—'} />
-          <DetailRow label="Created By"  value={sel.created_by_name  || '—'} />
+          <DetailRow label="Attendee"    value={sel.attendee_name    || '�'} />
+          <DetailRow label="Created By"  value={sel.created_by_name  || '�'} />
           <DetailRow label="Scheduled"   value={new Date(sel.scheduled_at).toLocaleString()} />
 
-          {/* ── INSPECTOR: sees submission_deadline as "Submit By" ── */}
+          {/* -- INSPECTOR: sees submission_deadline as "Submit By" -- */}
           {isAssignedInspector && !isAttendee && sel.submission_deadline && (
             <DetailRow
               label="Submit By"
@@ -752,7 +725,7 @@ if (err?.response?.status === 404) {
             />
           )}
 
-          {/* ── ATTENDEE: sees attendee_review_due as "Submit By" ── */}
+          {/* -- ATTENDEE: sees attendee_review_due as "Submit By" -- */}
           {isAttendee && !isAssignedInspector && (
             sel.attendee_review_due ? (
               <DetailRow
@@ -800,7 +773,7 @@ if (err?.response?.status === 404) {
             )
           )}
 
-          {/* ── ADMIN: sees both deadlines separately ── */}
+          {/* -- ADMIN: sees both deadlines separately -- */}
           {isAdmin && (
             <>
               {sel.submission_deadline && (
@@ -877,9 +850,9 @@ if (err?.response?.status === 404) {
                 color: submissionStatus.status === 'approved' ? '#166534'
                      : submissionStatus.status === 'rejected' ? '#991b1b' : '#854d0e',
               }}>
-                {submissionStatus.status === 'approved' ? '✓ Approved'
-               : submissionStatus.status === 'rejected' ? '✗ Rejected'
-               : '⏳ Pending Review'}
+                {submissionStatus.status === 'approved' ? '? Approved'
+               : submissionStatus.status === 'rejected' ? '? Rejected'
+               : '? Pending Review'}
               </span>
               {submissionStatus.reviewed_by_username && (
                 <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
@@ -905,13 +878,13 @@ if (err?.response?.status === 404) {
 
         {sel.status === 'completed' && !submissionStatus && (
           <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-            Loading inspection result…
+            Loading inspection result�
           </div>
         )}
       </div>
-      {/* ── End Scrollable Body ── */}
+      {/* -- End Scrollable Body -- */}
 
-      {/* ── Fixed Footer ── */}
+      {/* -- Fixed Footer -- */}
       <div style={{
         flexShrink: 0, padding: '1rem 1.25rem',
         borderTop: '1px solid var(--border)',
@@ -942,7 +915,7 @@ if (err?.response?.status === 404) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--muted)' }}>New submission deadline</label>
               <input
-                type="datetime-local" className="form-input"
+                type="datetime-local" className="form-control"
                 value={newDeadline}
                 min={new Date().toISOString().slice(0, 16)}
                 onChange={e => setNewDeadline(e.target.value)}
@@ -1029,46 +1002,6 @@ if (err?.response?.status === 404) {
             </div>
           )
         )}
-              {/* Review & Add Remarks – attendee only, when submission is rejected */}
-              {(sel.status === 'completed' || sel.status === 'in_progress') && isAttendee &&
-               (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' && (
-                isReviewDeadlinePassed ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                    <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                      📝 Review &amp; Add Remarks
-                    </button>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
-                      Review deadline passed ({new Date(reviewDeadline).toLocaleString()})
-                    </span>
-                  </div>
-                ) : (
-                  <button className="btn btn-primary" onClick={() => {
-                    setSelectedEvent(null);
-                    const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                    if (uuid) navigate(`/submissions/${uuid}/review`);
-                  }}>
-                    📝 Review &amp; Add Remarks
-                    {reviewDeadline && (
-                      <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 400, opacity: 0.85 }}>
-                        Due by {new Date(reviewDeadline).toLocaleString()}
-                      </span>
-                    )}
-                  </button>
-                )
-              )}
-
-              {/* Start Re-inspection – assigned inspector or admin, when submission is under_review */}
-              {(sel.status === 'completed' || sel.status === 'in_progress') &&
-               (isAdmin || (isAssignedInspector && role === 'inspector')) &&
-               (submissionStatus?.overall_status || submissionStatus?.status) === 'under_review' && (
-                <button className="btn btn-primary" onClick={() => {
-                  setSelectedEvent(null);
-                  const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
-                  if (uuid) navigate(`/submissions/${uuid}/reinspect`, { state: { scheduleId: sel.id } });
-                }}>
-                  🔄 Start Re-inspection
-                </button>
-              )}
 
         {sel.status === 'in_progress' && isAdmin && (
           <button className="btn btn-success" onClick={() => handleStatus(sel.id, 'completed')}>
@@ -1093,7 +1026,7 @@ if (err?.response?.status === 404) {
           </button>
         )}
 
-        {/* Review & Add Remarks — attendee only, when submission is rejected */}
+        {/* Review & Add Remarks � attendee only, when submission is rejected */}
         {(sel.status === 'completed' || sel.status === 'in_progress') && isAttendee &&
          (submissionStatus?.overall_status || submissionStatus?.status) === 'rejected' && (
           attendeeReviewSubmitted ? (
@@ -1103,10 +1036,10 @@ if (err?.response?.status === 404) {
           ) : isReviewDeadlinePassed ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
               <button className="btn btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-                📝 Review &amp; Add Remarks
+                ?? Review &amp; Add Remarks
               </button>
               <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>
-                Review deadline passed ({reviewDeadline ? new Date(reviewDeadline).toLocaleString() : '—'})
+                Review deadline passed ({reviewDeadline ? new Date(reviewDeadline).toLocaleString() : '�'})
               </span>
             </div>
           ) : (
@@ -1115,7 +1048,7 @@ if (err?.response?.status === 404) {
               const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
               if (uuid) navigate(`/submissions/${uuid}/review`);
             }}>
-              📝 Review &amp; Add Remarks
+              ?? Review &amp; Add Remarks
               {reviewDeadline && (
                 <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 400, opacity: 0.85 }}>
                   Due by {new Date(reviewDeadline).toLocaleString()}
@@ -1124,9 +1057,8 @@ if (err?.response?.status === 404) {
             </button>
           )
         )}
-            {/* ── End Fixed Footer ── */}
 
-        {/* Start Re-inspection — assigned inspector or admin, when submission is under_review */}
+        {/* Start Re-inspection � assigned inspector or admin, when submission is under_review */}
         {(sel.status === 'completed' || sel.status === 'in_progress') &&
          (isAdmin || (isAssignedInspector && role === 'inspector')) &&
          (submissionStatus?.overall_status || submissionStatus?.status) === 'under_review' && (
@@ -1135,7 +1067,7 @@ if (err?.response?.status === 404) {
             const uuid = sel.submission_uuid || localStorage.getItem(`schedule_submission_${sel.id}`);
             if (uuid) navigate(`/submissions/${uuid}/reinspect`);
           }}>
-            🔄 Start Re-inspection
+            ?? Start Re-inspection
           </button>
         )}
 
@@ -1157,7 +1089,7 @@ if (err?.response?.status === 404) {
           Close
         </button>
       </div>
-      {/* ── End Fixed Footer ── */}
+      {/* -- End Fixed Footer -- */}
 
     </div>
   </div>
@@ -1180,3 +1112,13 @@ function DetailRow({ label, value, last }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

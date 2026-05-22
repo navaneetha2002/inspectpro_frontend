@@ -34,17 +34,19 @@ function getAssignmentRole(n) {
   return null;
 }
 
+const BADGE_CLASSES = {
+  inspector: 'badge bg-primary-subtle text-primary border border-primary-subtle',
+  assignee:  'badge bg-primary-subtle text-primary border border-primary-subtle',
+  attendee:  'badge bg-success-subtle text-success border border-success-subtle',
+  reviewer:  'badge bg-warning-subtle text-warning-emphasis border border-warning-subtle',
+};
+
 function AssignmentBadge({ notif }) {
   const key = getAssignmentRole(notif);
   if (!key) return null;
-  const { label, bg, color, border } = ASSIGNMENT_BADGE[key];
   return (
-    <span style={{
-      display: 'inline-block', padding: '2px 10px', borderRadius: 999,
-      fontSize: '0.72rem', fontWeight: 700,
-      background: bg, color, border: `1px solid ${border}`,
-    }}>
-      {label}
+    <span className={BADGE_CLASSES[key]} style={{ fontSize: '0.72rem' }}>
+      {ASSIGNMENT_BADGE[key].label}
     </span>
   );
 }
@@ -91,41 +93,43 @@ export default function Inbox() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Inbox</h1>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            className={`btn ${showCompleted ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setShowCompleted(v => !v)}
-          >
-            {showCompleted
-              ? 'Hide Completed Tasks'
-              : `Show Completed Tasks${hiddenCount > 0 ? ` (${hiddenCount})` : ''}`}
-          </button>
-          {unreadCount > 0 && (
-            <button className="btn btn-secondary" onClick={markAllRead}>
-              Mark all as read
+      <div className="sticky-top bg-white border-bottom py-2 mb-3">
+        <nav aria-label="breadcrumb">
+          <ol className="breadcrumb mb-1">
+            <li className="breadcrumb-item active">Inbox</li>
+          </ol>
+        </nav>
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0">
+          <h1 className="h4 fw-bold mb-0">Inbox</h1>
+          <div className="d-flex gap-2 align-items-center flex-wrap">
+            <button
+              className={`btn btn-sm ${showCompleted ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setShowCompleted(v => !v)}>
+              {showCompleted
+                ? 'Hide Completed Tasks'
+                : `Show Completed Tasks${hiddenCount > 0 ? ` (${hiddenCount})` : ''}`}
             </button>
-          )}
+            {unreadCount > 0 && (
+              <button className="btn btn-sm btn-secondary" onClick={markAllRead}>
+                Mark all as read
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{
-          textAlign: 'center', padding: '4rem 2rem',
-          color: 'var(--muted)', fontSize: '0.95rem',
-        }}>
+        <div className="text-center text-muted py-5">
           Your inbox is empty.
         </div>
       ) : (
         <>
           {unread.length > 0 && (
-            <section style={{ marginBottom: '2rem' }}>
-              <h2 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: '0.75rem' }}>
+            <section className="mb-4">
+              <p className="text-uppercase text-muted fw-bold mb-2" style={{ fontSize: '0.75rem', letterSpacing: '0.06em' }}>
                 Unread
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              </p>
+              <div className="d-flex flex-column gap-2">
                 {unread.map(n => (
                   <NotifCard key={n.id} n={n} onRead={() => markRead(n.id)} submissionTitleMap={submissionTitleMap} />
                 ))}
@@ -135,11 +139,10 @@ export default function Inbox() {
 
           {read.length > 0 && (
             <section>
-              <h2 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: '0.75rem' }}>
+              <p className="text-uppercase text-muted fw-bold mb-2" style={{ fontSize: '0.75rem', letterSpacing: '0.06em' }}>
                 Read
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              </p>
+              <div className="d-flex flex-column gap-2">
                 {read.map(n => (
                   <NotifCard key={n.id} n={n} submissionTitleMap={submissionTitleMap} />
                 ))}
@@ -171,54 +174,37 @@ function NotifCard({ n, onRead, submissionTitleMap = {} }) {
   return (
     <div
       onClick={handleClick}
-      style={{
-        display: 'flex', alignItems: 'flex-start', gap: '1rem',
-        padding: '1rem 1.25rem',
-        background: n.is_read ? 'var(--surface)' : 'var(--bg)',
-        border: `1px solid ${n.is_read ? 'var(--border)' : '#bfdbfe'}`,
-        borderRadius: 'var(--radius)',
-        cursor: n.action_url ? 'pointer' : 'default',
-        transition: 'border-color 0.15s',
-      }}
-    >
+      className={`d-flex align-items-start gap-3 p-3 border rounded ${!n.is_read ? 'border-primary-subtle' : ''}`}
+      style={{ cursor: n.action_url ? 'pointer' : 'default', background: n.is_read ? 'var(--surface)' : 'var(--bg)' }}>
+
       {/* Unread dot */}
-      <div style={{ paddingTop: '0.3rem', flexShrink: 0 }}>
-        {!n.is_read ? (
-          <span style={{
-            display: 'block', width: 9, height: 9, borderRadius: '50%',
-            background: '#3b82f6',
-          }} />
-        ) : (
-          <span style={{ display: 'block', width: 9, height: 9 }} />
-        )}
+      <div className="pt-1 flex-shrink-0">
+        {!n.is_read
+          ? <span style={{ display: 'block', width: 9, height: 9, borderRadius: '50%', background: '#3b82f6' }} />
+          : <span style={{ display: 'block', width: 9, height: 9 }} />}
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex-fill" style={{ minWidth: 0 }}>
         {inspectionTitle && (
-          <div style={{ marginBottom: '0.3rem' }}>
-            <span style={{
-              fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px',
-              borderRadius: 999, background: '#eff6ff', color: '#1d4ed8',
-              border: '1px solid #bfdbfe',
-            }}>
+          <div className="mb-1">
+            <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: '0.72rem' }}>
               {inspectionTitle}
             </span>
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
-          <span style={{ fontWeight: n.is_read ? 500 : 700, fontSize: '0.95rem', color: 'var(--text)' }}>
+        <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
+          <span className={n.is_read ? 'fw-medium' : 'fw-bold'} style={{ fontSize: '0.95rem' }}>
             {extractInspectionTitle(n.message, n.title)}
           </span>
           <AssignmentBadge notif={n} />
         </div>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--muted)', lineHeight: 1.5 }}>
-          {n.message}
-        </p>
-        <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.35rem', display: 'block' }}>
+        <p className="mb-0 text-muted small">{n.message}</p>
+        <span className="d-block mt-1 text-secondary" style={{ fontSize: '0.75rem' }}>
           {timeAgo(n.created_at)}
         </span>
       </div>
     </div>
   );
 }
+

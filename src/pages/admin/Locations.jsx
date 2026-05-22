@@ -18,34 +18,38 @@ export default function AdminLocations() {
 
   return (
     <div>
-      <div className="sticky-header">
-        <nav className="breadcrumb">
-          <span className="breadcrumb-current">Locations Admin</span>
+      <div className="sticky-top bg-white border-bottom py-2 mb-3">
+        <nav aria-label="breadcrumb">
+          <ol className="breadcrumb mb-1">
+            <li className="breadcrumb-item active">Locations Admin</li>
+          </ol>
         </nav>
-        <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
-          <h1>Manage Locations</h1>
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0">
+          <h1 className="h4 fw-bold mb-0">Manage Locations</h1>
           <Link to="/admin/locations/new" className="btn btn-primary">+ Add Location</Link>
         </div>
       </div>
 
-      <table className="data-table">
-        <thead>
-          <tr><th>Name</th><th>Slug</th><th>Description</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          {locations.map(l => (
-            <tr key={l.id}>
-              <td data-label="Name">{l.name}</td>
-              <td data-label="Slug"><code>{l.slug}</code></td>
-              <td data-label="Description">{l.description}</td>
-              <td data-label="Actions" className="action-cell">
-                <Link to={`/admin/locations/${l.id}/edit`} className="btn btn-sm btn-secondary">Edit</Link>
-                <button onClick={() => setConfirmId(l.id)} className="btn btn-sm btn-danger">Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="table-responsive">
+        <table className="table table-bordered table-hover table-sm">
+          <thead className="table-light">
+            <tr><th>Name</th><th>Slug</th><th>Description</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {locations.map(l => (
+              <tr key={l.id}>
+                <td data-label="Name">{l.name}</td>
+                <td data-label="Slug"><code>{l.slug}</code></td>
+                <td data-label="Description">{l.description}</td>
+                <td data-label="Actions" className="d-flex gap-1">
+                  <Link to={`/admin/locations/${l.id}/edit`} className="btn btn-sm btn-secondary">Edit</Link>
+                  <button onClick={() => setConfirmId(l.id)} className="btn btn-sm btn-danger">Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {confirmId && (
         <ConfirmModal
@@ -60,3 +64,4 @@ export default function AdminLocations() {
     </div>
   );
 }
+
