@@ -33,12 +33,8 @@ export default function Register() {
     try {
       await register(username, email, password, location, role);
       setSuccess('Account created successfully.');
-      setUsername('');
-      setEmail('');
-      setPassword('');
-      setConfirm('');
-      setLocation('');
-      setRole('');
+      setUsername(''); setEmail(''); setPassword('');
+      setConfirm(''); setLocation(''); setRole('');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -47,70 +43,54 @@ export default function Register() {
   }
 
   return (
-    <div className="login-wrapper">
-      <form className="login-form" onSubmit={handleSubmit}>
-        <h2>Register New User</h2>
-        {error   && <p className="login-error">{error}</p>}
-        {success && <p className="login-success">{success}</p>}
-        <label>
-          Username
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            autoFocus
-          />
-        </label>
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Location
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Role
-          <select value={role} onChange={(e) => setRole(e.target.value)} required>
-            <option value="">Select a role</option>
-            {roles.map(r => (
-              <option key={r.role} value={r.role}>{r.role}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Confirm Password
-          <input
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-          />
-        </label>
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Creating account…' : 'Register'}
-        </button>
-      </form>
+    <div className="d-flex justify-content-center align-items-center py-5">
+      <div className="login-card">
+        <h2 className="h4 fw-bold text-center mb-3">Register New User</h2>
+
+        {error   && <div className="alert alert-danger py-2">{error}</div>}
+        {success && <div className="alert alert-success py-2">{success}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Username</label>
+            <input type="text" className="form-control" value={username}
+              onChange={(e) => setUsername(e.target.value)} required autoFocus />
+          </div>
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Email</label>
+            <input type="email" className="form-control" value={email}
+              onChange={(e) => setEmail(e.target.value)} required />
+          </div>
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Location</label>
+            <input type="text" className="form-control" value={location}
+              onChange={(e) => setLocation(e.target.value)} required />
+          </div>
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Role</label>
+            <select className="form-select" value={role} onChange={(e) => setRole(e.target.value)} required>
+              <option value="">Select a role</option>
+              {roles.map(r => (
+                <option key={r.role} value={r.role}>{r.role}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Password</label>
+            <input type="password" className="form-control" value={password}
+              onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Confirm Password</label>
+            <input type="password" className="form-control" value={confirm}
+              onChange={(e) => setConfirm(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+            {loading ? 'Creating account…' : 'Register'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
+

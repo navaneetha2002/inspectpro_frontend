@@ -5,247 +5,13 @@ import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { PERMISSIONS } from '../../config/permissions';
 import ConfirmModal from '../../components/ConfirmModal';
-
-function AuthenticatedImage({ id, alt, ...props }) {
-  const { token } = useAuth();
-  const [src, setSrc]     = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!id || !token) return;
-    const base = import.meta.env.VITE_API_BASE_URL;
-    let objectUrl;
-    let cancelled = false;
-    console.log('Fetching image:', `${base}/submissions/image/${id}`);
-
-    fetch(`${base}/submissions/image/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async r => {
-  if (!r.ok) {
-    const text = await r.text();
-    console.error('API error response:', text);  // 👈 shows the actual error
-    throw new Error(`Image load failed: ${r.status} ${r.statusText}`);
-  }
-  return r.blob();
-})
-      .then(blob => {
-        console.log('Blob type:', blob.type);
-        console.log('Blob size:', blob.size);
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-      })
-      .catch(err => {
-        if (cancelled) return;
-        console.error(`AuthenticatedImage [id=${id}]:`, err.message);
-        setError(err.message);
-      });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [id, token]);
-
-  if (error) return <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{error}</span>;
-  if (!src)  return <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Loading…</span>;
-  return <img src={src} alt={alt} {...props} />;
-}
-
-function StatusBadge({ status }) {
-  const map = {
-    pending:      { bg: '#fefce8', color: '#854d0e', border: '#fde047', label: '⏳ Pending'      },
-    submitted:    { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', label: '📋 Submitted'    },
-    approved:     { bg: '#f0fdf4', color: '#166534', border: '#86efac', label: '✓ Approved'      },
-    rejected:     { bg: '#fef2f2', color: '#991b1b', border: '#fca5a5', label: '✗ Rejected'      },
-    under_review: { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff', label: '🔍 Under Review' },
-    closed:       { bg: '#f8fafc', color: '#475569', border: '#cbd5e1', label: '🔒 Closed'       },
-  };
-  const s = map[status] || map.pending;
-  return (
-    <span style={{
-      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-      padding: '0.25rem 0.75rem', borderRadius: '999px',
-      fontSize: '0.85rem', fontWeight: 600, display: 'inline-block',
-    }}>
-      {s.label}
-    </span>
-  );
-}
-
-function RoundTimeline({ rounds, labelMap }) {
-  const [expanded, setExpanded] = useState(null);
-
-  return (
-    <div style={{ marginTop: '1.5rem' }}>
-      <h2>Inspection History</h2>
-      {rounds.map(r => (
-        <div key={r.id} style={{
-          border: '1px solid #e2e8f0', borderRadius: 10,
-          marginBottom: '1rem', overflow: 'hidden',
-        }}>
-          <div
-            onClick={() => setExpanded(expanded === r.id ? null : r.id)}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '0.85rem 1.25rem', cursor: 'pointer',
-              background: expanded === r.id ? '#f8fafc' : '#fff',
-              borderBottom: expanded === r.id ? '1px solid #e2e8f0' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: r.status === 'approved' ? '#16a34a'
-                          : r.status === 'rejected'  ? '#dc2626' : '#3b82f6',
-                color: '#fff', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0,
-              }}>
-                {r.round_number}
-              </span>
-              <div>
-                <span style={{ fontWeight: 600 }}>
-                  {r.round_number === 1 ? 'Initial Inspection' : `Re-inspection #${r.round_number - 1}`}
-                </span>
-                {r.inspector_username && (
-                  <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#64748b' }}>
-                    by {r.inspector_username}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <StatusBadge status={r.status} />
-              {r.submitted_at && (
-                <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                  {new Date(r.submitted_at).toLocaleString()}
-                </span>
-              )}
-              <span style={{ color: '#94a3b8' }}>{expanded === r.id ? '▲' : '▼'}</span>
-            </div>
-          </div>
-
-          {expanded === r.id && (
-            <div style={{ padding: '1.25rem' }}>
-              {r.answers && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <h4 style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase' }}>
-                    Answers
-                  </h4>
-                  <dl style={{ margin: 0 }}>
-                    {Object.entries(r.answers).map(([qId, val]) => (
-                      <div key={qId} style={{
-                        display: 'grid', gridTemplateColumns: '1fr 1fr',
-                        gap: '0.5rem', padding: '0.4rem 0',
-                        borderBottom: '1px solid #f1f5f9',
-                      }}>
-                        <dt style={{ fontWeight: 500, fontSize: '0.875rem', color: '#334155' }}>
-                          {labelMap?.[qId] || `Question #${qId}`}
-                        </dt>
-                        <dd style={{ margin: 0, fontSize: '0.875rem', color: '#475569' }}>{val}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              )}
-
-              {r.status !== 'pending' && r.status !== 'submitted' && (
-                <div style={{
-                  padding: '0.75rem 1rem', borderRadius: 8, marginBottom: '1rem',
-                  background: r.status === 'approved' ? '#f0fdf4' : '#fef2f2',
-                  border: `1px solid ${r.status === 'approved' ? '#86efac' : '#fca5a5'}`,
-                }}>
-                  <p style={{ margin: 0, fontWeight: 600,
-                    color: r.status === 'approved' ? '#166534' : '#991b1b' }}>
-                    {r.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
-                    {r.reviewed_by_username && ` by ${r.reviewed_by_username}`}
-                    {r.reviewed_at && (
-                      <span style={{ fontWeight: 400, fontSize: '0.8rem', marginLeft: '0.5rem', color: '#64748b' }}>
-                        on {new Date(r.reviewed_at).toLocaleString()}
-                      </span>
-                    )}
-                  </p>
-                  {r.review_notes && (
-                    <p style={{ margin: '0.35rem 0 0', fontSize: '0.875rem', color: '#475569' }}>
-                      {r.review_notes}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {r.attendee_remarks?.length > 0 && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <h4 style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#7e22ce', textTransform: 'uppercase' }}>
-                    Attendee Remarks
-                  </h4>
-                  {r.attendee_remarks.map(ar => (
-                    <div key={ar.question_id} style={{
-                      padding: '0.6rem 0.85rem', marginBottom: '0.4rem',
-                      background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 7,
-                    }}>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.85rem', color: '#581c87' }}>
-                        {ar.question}
-                      </p>
-                      <p style={{ margin: '0.2rem 0 0', fontSize: '0.85rem', color: '#6b21a8' }}>
-                        {ar.remark}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-             {/* With this: */}
-{r.inspector_images?.length > 0 && (
-  <div style={{ marginBottom: '1rem' }}>
-    <h4 style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase' }}>
-      Inspector Images ({r.inspector_images.length})
-    </h4>
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-      {r.inspector_images.map(img => (
-        <div key={img.id} style={{ flex: '0 0 auto' }}>
-          <AuthenticatedImage
-            id={img.id}
-            alt={img.original_name || `Inspector image ${img.id}`}
-            style={{ width: '160px', height: '120px', objectFit: 'cover', borderRadius: 6 }}
-          />
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-
-{r.attendee_images?.length > 0 && (
-  <div>
-    <h4 style={{ marginBottom: '0.5rem', fontSize: '0.85rem', color: '#7e22ce', textTransform: 'uppercase' }}>
-      Attendee Images ({r.attendee_images.length})
-    </h4>
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-      {r.attendee_images.map(img => (
-        <div key={img.id} style={{ flex: '0 0 auto' }}>
-          <AuthenticatedImage
-            id={img.id}
-            alt={img.original_name || `Attendee image ${img.id}`}
-            style={{ width: '160px', height: '120px', objectFit: 'cover', borderRadius: 6 }}
-          />
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+import { RoundTimeline, StatusBadge, AuthenticatedImage } from '../../components/RoundTimeline';
 
 export default function SubmissionDetail() {
-  const { uuid }          = useParams();
-  const navigate          = useNavigate();
-  const location          = useLocation();
-  const scheduleTitle     = location.state?.scheduleTitle ?? null;
+  const { uuid }      = useParams();
+  const navigate      = useNavigate();
+  const location      = useLocation();
+  const scheduleTitle = location.state?.scheduleTitle ?? null;
 
   const { isGlobalAdmin, role, userId } = useAuth();
   const { hasPermission }       = usePermissions();
@@ -268,10 +34,10 @@ export default function SubmissionDetail() {
   if (!data) return <p>Loading…</p>;
 
   const { submission, images, labelMap } = data;
-  const overallStatus  = submission.overall_status || submission.status || 'pending';
-  const roundsList     = rounds?.rounds      ?? [];
-  const currentRound   = rounds?.current_round ?? 1;
-  const displayTitle   = submission.schedule_title ?? scheduleTitle;
+  const overallStatus = submission.overall_status || submission.status || 'pending';
+  const roundsList    = rounds?.rounds      ?? [];
+  const currentRound  = rounds?.current_round ?? 1;
+  const displayTitle  = submission.schedule_title ?? scheduleTitle;
 
   async function handleDelete() {
     setDeleting(true);
@@ -288,19 +54,20 @@ export default function SubmissionDetail() {
 
   return (
     <div>
-      <div className="sticky-header">
-        <nav className="breadcrumb">
-          <span className="breadcrumb-link" onClick={() => navigate('/submissions')}>Submissions</span>
-          <span className="breadcrumb-sep">›</span>
-          <span className="breadcrumb-current">{submission.category_name} Inspection</span>
+      <div className="sticky-top bg-white border-bottom py-2 mb-3">
+        <nav aria-label="breadcrumb">
+          <ol className="breadcrumb mb-1">
+            <li className="breadcrumb-item" role="button" onClick={() => navigate('/submissions')}>
+              Submissions
+            </li>
+            <li className="breadcrumb-item active">{submission.category_name} Inspection</li>
+          </ol>
         </nav>
-        <div className="page-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-0">
           <div>
-            <h1>{submission.category_name} Inspection</h1>
+            <h1 className="h4 fw-bold mb-0">{submission.category_name} Inspection</h1>
             {displayTitle && (
-              <p style={{ margin: '0.15rem 0 0', fontSize: '0.95rem', color: 'var(--muted)', fontWeight: 500 }}>
-                {displayTitle}
-              </p>
+              <p className="text-muted small mb-0 mt-1">{displayTitle}</p>
             )}
           </div>
           {canDelete && overallStatus !== 'closed' && (
@@ -312,32 +79,21 @@ export default function SubmissionDetail() {
       </div>
 
       {/* Meta row */}
-      <div className="detail-meta" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="d-flex align-items-center gap-3 flex-wrap text-muted small mb-3">
         <span>Submitted: {new Date(submission.submitted_at).toLocaleString()}</span>
         <StatusBadge status={overallStatus} />
-        {rounds && (
-          <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            Round {currentRound}
-          </span>
-        )}
+        {rounds && <span>Round {currentRound}</span>}
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: '0.75rem', margin: '1rem 0', flexWrap: 'wrap' }}>
+      <div className="d-flex gap-3 my-3 flex-wrap">
         {overallStatus === 'rejected' && (String(submission.attendee_id) === String(userId) || role === 'attendee') && (
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate(`/submissions/${uuid}/review`)}
-          >
+          <button className="btn btn-primary" onClick={() => navigate(`/submissions/${uuid}/review`)}>
             📝 Review &amp; Add Remarks
           </button>
         )}
-
         {overallStatus === 'under_review' && (String(submission.assigned_to) === String(userId) || isInspector) && (
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate(`/submissions/${uuid}/reinspect`)}
-          >
+          <button className="btn btn-primary" onClick={() => navigate(`/submissions/${uuid}/reinspect`)}>
             🔄 Start Re-inspection
           </button>
         )}
@@ -345,49 +101,58 @@ export default function SubmissionDetail() {
 
       {/* Latest decision banner */}
       {submission.status !== 'pending' && submission.status !== 'submitted' && overallStatus !== 'under_review' && (
-        <div style={{
-          margin: '1rem 0', padding: '1rem 1.25rem', borderRadius: 10,
-          background: overallStatus === 'approved' ? '#f0fdf4' : '#fef2f2',
-          border: `1px solid ${overallStatus === 'approved' ? '#86efac' : '#fca5a5'}`,
-        }}>
-          <p style={{ margin: 0, fontWeight: 600,
-            color: overallStatus === 'approved' ? '#166534' : '#991b1b' }}>
+        <div className={`alert ${overallStatus === 'approved' ? 'alert-success' : 'alert-danger'} mb-3`}>
+          <p className="mb-0 fw-semibold">
             {overallStatus === 'approved' ? '✓ Approved' : '✗ Rejected'}
             {submission.reviewed_by_username && ` by ${submission.reviewed_by_username}`}
             {submission.reviewed_at && (
-              <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: '#64748b', fontSize: '0.85rem' }}>
+              <span className="fw-normal ms-2 text-muted small">
                 on {new Date(submission.reviewed_at).toLocaleString()}
               </span>
             )}
           </p>
           {submission.review_notes && (
-            <p style={{ margin: '0.4rem 0 0', fontSize: '0.9rem', color: '#475569' }}>
-              {submission.review_notes}
-            </p>
+            <p className="mb-0 mt-1 small">{submission.review_notes}</p>
           )}
+          {overallStatus === 'rejected' && submission.review_deadline && (() => {
+            const deadlinePassed = Date.now() > new Date(submission.review_deadline).getTime();
+            return (
+              <p className="mb-0 mt-2 small d-flex align-items-center gap-2 flex-wrap">
+                <span className="fw-medium">Attendee review deadline:</span>
+                <strong className={deadlinePassed ? 'text-danger' : ''}>
+                  {new Date(submission.review_deadline).toLocaleString()}
+                </strong>
+                {deadlinePassed && (
+                  <span className="badge bg-danger">Deadline passed</span>
+                )}
+              </p>
+            );
+          })()}
         </div>
       )}
 
       {/* Answers */}
-      <div className="detail-section">
-        <h2>Answers</h2>
-        <dl className="answers-list">
+      <div className="mb-4">
+        <h2 className="h5 fw-bold mb-3">Answers</h2>
+        <div className="d-flex flex-column gap-2">
           {Object.entries(submission.answers).map(([key, value]) => (
-            <div key={key} className="answer-row">
-              <dt>{labelMap[key] || `Question #${key}`}</dt>
-              <dd>{value}</dd>
+            <div key={key} className="d-flex gap-3 p-3 border rounded">
+              <dt className="fw-semibold text-muted" style={{ minWidth: '200px', fontSize: '0.9rem' }}>
+                {labelMap[key] || `Question #${key}`}
+              </dt>
+              <dd className="mb-0">{value}</dd>
             </div>
           ))}
-        </dl>
+        </div>
       </div>
 
       {/* Images */}
       {images.length > 0 && (
-        <div className="detail-section">
-          <h2>Images</h2>
-          <div className="image-gallery">
+        <div className="mb-4">
+          <h2 className="h5 fw-bold mb-3">Images</h2>
+          <div className="row row-cols-2 row-cols-md-4 g-3">
             {images.map(img => (
-              <div key={img.id} className="gallery-item">
+              <div key={img.id} className="col text-center">
                 <AuthenticatedImage
                   id={img.id}
                   alt={img.original_name}
@@ -402,7 +167,7 @@ export default function SubmissionDetail() {
 
       {/* Round history */}
       {roundsList.length > 0 && (
-        <div className="detail-section">
+        <div className="mb-4">
           <RoundTimeline rounds={roundsList} labelMap={labelMap} />
         </div>
       )}
@@ -420,3 +185,6 @@ export default function SubmissionDetail() {
     </div>
   );
 }
+
+
+

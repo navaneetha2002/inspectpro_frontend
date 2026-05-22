@@ -64,8 +64,8 @@ export const getMySubmissionForForm  = (slug, location, scheduleId) => {
   const qs = p.toString();
   return authApi.get(`/form/${slug}/my-submission${qs ? `?${qs}` : ''}`);
 };
-export const updateSubmissionStatus = (uuid, status, review_notes, review_deadline) =>
-  authApi.patch(`/submissions/${uuid}/status`, { status, review_notes, ...(review_deadline ? { review_deadline } : {}) });
+export const updateSubmissionStatus = (uuid, status, review_notes, attendee_review_due) =>
+  authApi.patch(`/submissions/${uuid}/status`, { status, review_notes, attendee_review_due });
 export const notifyReviewDeadlineMissed = (uuid) =>
   authApi.post('/notifications/review-deadline-missed', { submission_uuid: uuid });
 export const getMySubmittedForms     = (location)        => authApi.get(`/form/my-submissions${location ? `?location=${location}` : ''}`);
@@ -123,8 +123,8 @@ export const getAttendeesByLocation = (locationId) =>
 // Rounds
 export const getRounds              = (uuid)                    => authApi.get(`/submissions/${uuid}/rounds`);
 export const submitRound            = (uuid, formData)          => authApi.post(`/submissions/${uuid}/rounds`, formData);
-export const submitRoundDecision    = (uuid, roundId, status, review_notes, review_deadline) =>
-  authApi.patch(`/submissions/${uuid}/rounds/${roundId}/decision`, { status, review_notes, ...(review_deadline ? { review_deadline } : {}) });
+export const submitRoundDecision    = (uuid, roundId, status, review_notes, attendee_review_due) =>
+  authApi.patch(`/submissions/${uuid}/rounds/${roundId}/decision`, { status, review_notes, attendee_review_due });
 export const submitRemarks          = (uuid, roundId, remarks)  =>
   authApi.post(`/submissions/${uuid}/rounds/${roundId}/remarks`, { remarks });
 export const uploadAttendeeImages   = (uuid, roundId, formData) =>

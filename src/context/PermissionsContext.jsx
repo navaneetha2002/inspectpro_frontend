@@ -94,3 +94,4 @@ export function PermissionsProvider({ children }) {
 export function usePermissions() {
   return useContext(PermissionsContext);
 }
+

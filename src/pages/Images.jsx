@@ -14,16 +14,14 @@ export default function Images() {
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState(null);
   const [schedule, setSchedule]       = useState(null);
-  const [reviewDeadline, setReviewDeadline] = useState('');
+  const [attendeeDeadline, setAttendeeDeadline] = useState('');
 
   const scheduleId  = new URLSearchParams(window.location.search).get('schedule_id');
   const isInspector = ['inspector', 'global_admin', 'local_admin'].includes(role);
 
   useEffect(() => {
     if (scheduleId) {
-      getScheduleById(scheduleId)
-        .then(r => setSchedule(r.data))
-        .catch(() => {});
+      getScheduleById(scheduleId).then(r => setSchedule(r.data)).catch(() => {});
     }
   }, [scheduleId]);
 
@@ -49,18 +47,9 @@ export default function Images() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-
-    if (files.length === 0) {
-      setError('Please upload at least one image before submitting.');
-      return;
-    }
-
-    if (isInspector && !decision) {
-      setError('Please approve or reject the inspection before submitting.');
-      return;
-    }
-
-    if (isInspector && decision === 'rejected' && !reviewDeadline) {
+    if (files.length === 0) { setError('Please upload at least one image before submitting.'); return; }
+    if (isInspector && !decision) { setError('Please approve or reject the inspection before submitting.'); return; }
+    if (isInspector && decision === 'rejected' && !attendeeDeadline) {
       setError('Please set a deadline for the attendee to submit their review.');
       return;
     }
@@ -84,31 +73,21 @@ export default function Images() {
 
       if (isInspector && decision) {
         await updateSubmissionStatus(
-          data.submissionUuid,
-          decision,
-          reviewNotes,
-          decision === 'rejected' ? reviewDeadline : null,
+          data.submissionUuid, decision, reviewNotes,
+          decision === 'rejected' ? attendeeDeadline : null
         );
       }
 
       if (scheduleId) {
-        if (data.submissionUuid) {
-          localStorage.setItem(`schedule_submission_${scheduleId}`, data.submissionUuid);
-        }
+        if (data.submissionUuid) localStorage.setItem(`schedule_submission_${scheduleId}`, data.submissionUuid);
         if (decision === 'approved') {
-          try {
-            await updateScheduleStatus(scheduleId, 'completed', data.submissionUuid);
-          } catch (err) {
-            console.error('Failed to update schedule after submission:', err);
-          }
+          try { await updateScheduleStatus(scheduleId, 'completed', data.submissionUuid); } catch {}
         }
       }
 
       sessionStorage.removeItem(`answers_${slug}`);
       navigate(`/submissions/${data.submissionUuid}/thankyou`);
-
     } catch (err) {
-      console.error('Submission failed:', err);
       setError(err.response?.data?.error || 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
@@ -119,9 +98,9 @@ export default function Images() {
     const now = Date.now();
     if (schedule.submission_deadline && now > new Date(schedule.submission_deadline).getTime()) {
       return (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Submission deadline has passed</p>
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
+        <div className="text-center py-4">
+          <p className="fw-semibold mb-1">Submission deadline has passed</p>
+          <p className="text-muted small">
             The deadline was {new Date(schedule.submission_deadline).toLocaleString()}.
             Contact your coordinator to extend the deadline.
           </p>
@@ -132,10 +111,12 @@ export default function Images() {
 
   return (
     <div>
-      <h1>Upload Images <span style={{ color: 'var(--danger)' }}>*</span></h1>
+      <h1 className="h3 fw-bold mb-3">
+        Upload Images <span className="text-danger">*</span>
+      </h1>
 
       <div
-        className="upload-area"
+        className="border border-2 border-dashed rounded p-5 text-center bg-light cursor-pointer"
         onClick={() => document.getElementById('fileInput').click()}
         onDragOver={e => e.preventDefault()}
         onDrop={handleDrop}
@@ -143,12 +124,12 @@ export default function Images() {
         <div className="upload-icon">📷</div>
         <p>Click or drag images here</p>
         <p className="upload-hint">JPEG, PNG, GIF, WEBP — max 10MB each · select multiple at once</p>
-        <input id="fileInput" type="file" className="file-input" multiple accept="image/*"
+        <input id="fileInput" type="file" className="d-none" multiple accept="image/*"
                onChange={e => handleFiles(e.target.files)} />
       </div>
 
       {previews.length > 0 && (
-        <div className="preview-grid">
+        <div className="row row-cols-2 row-cols-md-4 g-3 mt-2">
           {previews.map((src, i) => (
             <div key={i} className="preview-item" style={{ position: 'relative' }}>
               <img src={src} alt={files[i].name} />
@@ -161,8 +142,7 @@ export default function Images() {
                   background: '#dc2626', color: '#fff',
                   border: 'none', borderRadius: '50%',
                   width: 22, height: 22, cursor: 'pointer',
-                  fontWeight: 700, fontSize: 14, lineHeight: '22px',
-                  padding: 0,
+                  fontWeight: 700, fontSize: 14, lineHeight: '22px', padding: 0,
                 }}
               >×</button>
             </div>
@@ -172,64 +152,46 @@ export default function Images() {
 
       {/* Inspector decision panel */}
       {isInspector && (
-        <div style={{
-          marginTop: '2rem', padding: '1.25rem',
-          border: '1px solid #e2e8f0', borderRadius: '10px',
-          background: '#f8fafc',
-        }}>
-          <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem', fontWeight: 600 }}>
-            Inspector Decision
-          </h3>
+        <div className="card card-body mt-4">
+          <h3 className="h6 fw-semibold mb-3">Inspector Decision</h3>
 
-          <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500 }}>
-            Notes <span style={{ color: '#64748b', fontWeight: 400 }}>(optional)</span>
-          </label>
-          <textarea
-            className="form-input form-textarea"
-            placeholder="Add any observations or reason for rejection…"
-            value={reviewNotes}
-            onChange={e => setReviewNotes(e.target.value)}
-            style={{ marginBottom: '1rem', width: '100%' }}
-          />
+          <div className="mb-3">
+            <label className="form-label fw-medium">
+              Notes <span className="text-muted fw-normal">(optional)</span>
+            </label>
+            <textarea
+              className="form-control"
+              placeholder="Add any observations or reason for rejection…"
+              value={reviewNotes}
+              onChange={e => setReviewNotes(e.target.value)}
+            />
+          </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <div className="d-flex gap-3 mb-2">
             <button
               type="button"
               onClick={() => setDecision('approved')}
-              style={{
-                flex: 1, padding: '0.65rem',
-                background: decision === 'approved' ? '#16a34a' : '#f0fdf4',
-                color: decision === 'approved' ? '#fff' : '#16a34a',
-                border: '2px solid #16a34a', borderRadius: '8px',
-                fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-              }}
+              className={`btn flex-fill ${decision === 'approved' ? 'btn-success' : 'btn-outline-success'}`}
             >
               ✓ Approve
             </button>
             <button
               type="button"
               onClick={() => setDecision('rejected')}
-              style={{
-                flex: 1, padding: '0.65rem',
-                background: decision === 'rejected' ? '#dc2626' : '#fef2f2',
-                color: decision === 'rejected' ? '#fff' : '#dc2626',
-                border: '2px solid #dc2626', borderRadius: '8px',
-                fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-              }}
+              className={`btn flex-fill ${decision === 'rejected' ? 'btn-danger' : 'btn-outline-danger'}`}
             >
               ✗ Reject
             </button>
           </div>
 
           {decision && (
-            <p style={{
-              margin: '0.5rem 0 0', fontSize: '0.875rem', fontWeight: 500,
-              color: decision === 'approved' ? '#16a34a' : '#dc2626',
-            }}>
+            <p className={`small fw-medium mb-0 ${decision === 'approved' ? 'text-success' : 'text-danger'}`}>
               {decision === 'approved' ? '✓ Marked as Approved' : '✗ Marked as Rejected'}
-              {' '}<span
-                style={{ cursor: 'pointer', textDecoration: 'underline', fontWeight: 400 }}
-                onClick={() => { setDecision(null); setReviewDeadline(''); }}
+              {' '}
+              <span
+                className="text-decoration-underline fw-normal"
+                style={{ cursor: 'pointer' }}
+                onClick={() => { setDecision(null); }}
               >
                 Change
               </span>
@@ -237,20 +199,19 @@ export default function Images() {
           )}
 
           {decision === 'rejected' && (
-            <div style={{ marginTop: '1rem', padding: '1rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8 }}>
-              <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.875rem', color: '#9a3412' }}>
-                Attendee Review Deadline <span style={{ color: '#dc2626' }}>*</span>
+            <div className="mt-3 p-3 rounded border border-warning bg-warning bg-opacity-10">
+              <label className="form-label fw-semibold text-danger-emphasis small">
+                Attendee Review Deadline <span className="text-danger">*</span>
               </label>
-              <p style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', color: '#c2410c' }}>
+              <p className="text-muted small mb-2">
                 Set a deadline by which the attendee must submit their review remarks.
               </p>
               <input
                 type="datetime-local"
-                className="form-input"
-                value={reviewDeadline}
+                className="form-control"
+                value={attendeeDeadline}
                 min={new Date().toISOString().slice(0, 16)}
-                onChange={e => setReviewDeadline(e.target.value)}
-                required
+                onChange={e => setAttendeeDeadline(e.target.value)}
               />
             </div>
           )}
@@ -258,23 +219,14 @@ export default function Images() {
       )}
 
       {error && (
-        <div style={{
-          padding: '0.75rem 1rem', marginTop: '1rem', borderRadius: '8px',
-          background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b',
-        }}>
-          {error}
-        </div>
+        <div className="alert alert-danger mt-3">{error}</div>
       )}
 
-      <div className="form-actions" style={{ marginTop: '1.5rem' }}>
+      <div className="d-flex gap-3 flex-wrap mt-4">
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitting || files.length === 0 || (isInspector && !decision)}
-          style={{
-            opacity: (submitting || files.length === 0 || (isInspector && !decision)) ? 0.5 : 1,
-            cursor: (submitting || files.length === 0 || (isInspector && !decision)) ? 'not-allowed' : 'pointer',
-          }}
+          disabled={submitting || (isInspector && !decision) || (decision === 'rejected' && !attendeeDeadline)}
           className={`btn ${decision === 'rejected' ? 'btn-danger' : 'btn-success'}`}
         >
           {submitting
@@ -287,3 +239,7 @@ export default function Images() {
     </div>
   );
 }
+
+
+
+
