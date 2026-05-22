@@ -155,7 +155,23 @@ export default function CalendarPage() {
     const openId = searchParams.get('open');
     if (!openId || !events.length) return;
     const match = events.find(e => e.id === openId);
-    if (match) setSelectedEvent(match.extendedProps);
+    if (!match) return;
+    const props = match.extendedProps;
+    setSelectedEvent(props);
+    setSubmissionStatus(null);
+    setSubmissionRounds(null);
+    if (props.status === 'completed' || props.status === 'in_progress') {
+      const uuid = props.submission_uuid
+        || localStorage.getItem(`schedule_submission_${props.id}`);
+      if (uuid) {
+        getSubmission(uuid)
+          .then(r => setSubmissionStatus(r.data?.submission ?? null))
+          .catch(() => setSubmissionStatus(null));
+        getRounds(uuid)
+          .then(r => setSubmissionRounds(r.data ?? null))
+          .catch(() => setSubmissionRounds(null));
+      }
+    }
   }, [searchParams, events]);
 
   useEffect(() => {
